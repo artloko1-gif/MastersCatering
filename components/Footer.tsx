@@ -1,16 +1,20 @@
 import React from 'react';
-import { Facebook, Instagram, Linkedin } from 'lucide-react';
-import { Logo } from './Logo';
+import { UtensilsCrossed, Facebook, Instagram, Linkedin, Lock } from 'lucide-react';
 
-export const Footer: React.FC = () => {
+interface FooterProps {
+  onAdminClick?: () => void;
+}
+
+export const Footer: React.FC<FooterProps> = ({ onAdminClick }) => {
   return (
     <footer className="bg-slate-900 text-slate-400 border-t border-slate-800 pt-16 pb-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid md:grid-cols-4 gap-12 mb-12">
           
           <div className="col-span-1 md:col-span-1">
-             <div className="text-white mb-6">
-                <Logo className="h-10 w-auto text-primary" />
+             <div className="flex items-center gap-2 text-white mb-6">
+                <UtensilsCrossed size={24} className="text-primary" />
+                <span className="font-serif text-xl font-bold">Master's Catering</span>
              </div>
              <p className="text-sm leading-relaxed mb-6">
                Doufáme, že se vám naše prezentace líbila a inspirovala Vás k uspořádání nezapomenutelné akce s Master's Catering.
@@ -53,7 +57,17 @@ export const Footer: React.FC = () => {
 
         <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center text-sm">
           <p>© 2025 Master's Catering. Všechna práva vyhrazena.</p>
-          <p className="mt-2 md:mt-0">Design inspirován Master's Catering brandem.</p>
+          <div className="flex items-center gap-4 mt-2 md:mt-0">
+             <p>Design inspirován Master's Catering brandem.</p>
+             {onAdminClick && (
+               <button 
+                onClick={onAdminClick}
+                className="opacity-30 hover:opacity-100 transition-opacity flex items-center gap-1 text-xs"
+               >
+                 <Lock size={10} /> Administrace
+               </button>
+             )}
+          </div>
         </div>
       </div>
     </footer>

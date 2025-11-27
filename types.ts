@@ -12,6 +12,7 @@ export interface ServiceItem {
 }
 
 export interface PortfolioItem {
+  id: string; // Added ID for editing/deleting
   title: string;
   client?: string;
   date?: string;
@@ -27,4 +28,17 @@ export interface LocationItem {
   description: string;
   imageUrl: string;
   icon: LucideIcon;
+}
+
+export interface SiteContent {
+  heroImage: string;
+  aboutImage: string;
+  projects: PortfolioItem[];
+}
+
+export interface ContentContextType {
+  content: SiteContent;
+  updateGlobalImages: (hero: string, about: string) => void;
+  addProject: (project: PortfolioItem) => void;
+  removeProject: (id: string) => void;
 }

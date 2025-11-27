@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, UtensilsCrossed } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Logo } from './Logo';
 
 const navLinks = [
   { name: 'Úvod', href: '#home' },
@@ -32,16 +31,16 @@ export const Navbar: React.FC = () => {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          <div 
-            className={`flex-shrink-0 flex items-center cursor-pointer transition-colors duration-300 ${
-              isScrolled ? 'text-primary' : 'text-white drop-shadow-md'
-            }`} 
-            onClick={() => window.scrollTo(0,0)}
-          >
-            <Logo className="h-10 w-auto" />
+          <div className="flex-shrink-0 flex items-center gap-2 cursor-pointer" onClick={() => window.scrollTo(0,0)}>
+            <div className={`p-2 rounded-full ${isScrolled ? 'bg-primary text-white' : 'bg-white text-primary'}`}>
+               <UtensilsCrossed size={24} />
+            </div>
+            <span className={`font-serif text-2xl font-bold tracking-tight ${isScrolled ? 'text-primary-dark' : 'text-white drop-shadow-md'}`}>
+              Master's Catering
+            </span>
           </div>
           
-          <div className="hidden md:flex space-x-8 items-center">
+          <div className="hidden md:flex space-x-8">
             {navLinks.map((link) => (
               <a
                 key={link.name}

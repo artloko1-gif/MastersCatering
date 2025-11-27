@@ -1,27 +1,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { PortfolioItem } from '../types';
-
-const projects: PortfolioItem[] = [
-  {
-    title: "Galavečeře pro Qatar Airways Cargo",
-    client: "Qatar Airways Cargo",
-    date: "3. 4. 2025",
-    guests: 300,
-    location: "Rudolfova slévárna, Pražský hrad",
-    description: "Luxusní galavečeře v historických prostorách, která uchvátila hosty z celého světa. Kulinářský zážitek hodný královského sídla.",
-    imageUrl: "https://images.unsplash.com/photo-1519225469958-319ea327d92f?q=80&w=2070&auto=format&fit=crop",
-    tags: ["Galavečeře", "VIP", "300 Hostů"]
-  },
-  {
-    title: "Jízda s tříchodovým menu v Ringhofferu",
-    description: "Nostalgická jízda historickým jídelním vozem Ringhoffer s exkluzivním tříchodovým menu. Jedinečná kombinace cestování a gastronomie.",
-    imageUrl: "https://images.unsplash.com/photo-1485394582334-706d4e8c1050?q=80&w=1925&auto=format&fit=crop",
-    tags: ["Historický vlak", "Zážitková gastronomie"]
-  }
-];
+import { useContent } from '../contexts/ContentContext';
 
 export const Portfolio: React.FC = () => {
+  const { content } = useContent();
+
   return (
     <section className="py-24 bg-slate-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -35,9 +18,9 @@ export const Portfolio: React.FC = () => {
         </div>
 
         <div className="grid lg:grid-cols-2 gap-10">
-          {projects.map((project, index) => (
+          {content.projects.map((project, index) => (
             <motion.div
-              key={index}
+              key={project.id}
               initial={{ opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
@@ -65,12 +48,12 @@ export const Portfolio: React.FC = () => {
                   {project.title}
                 </h3>
                 
-                {project.client && (
+                {(project.client || project.date || project.guests) && (
                   <div className="grid grid-cols-2 gap-y-2 text-sm text-slate-500 mb-6 bg-slate-50 p-4 rounded-xl">
-                    <div><span className="font-bold text-slate-700">Klient:</span> {project.client}</div>
-                    <div><span className="font-bold text-slate-700">Datum:</span> {project.date}</div>
-                    <div><span className="font-bold text-slate-700">Lokace:</span> Pražský hrad</div>
-                    <div><span className="font-bold text-slate-700">Hostů:</span> {project.guests}</div>
+                    {project.client && <div><span className="font-bold text-slate-700">Klient:</span> {project.client}</div>}
+                    {project.date && <div><span className="font-bold text-slate-700">Datum:</span> {project.date}</div>}
+                    {project.location && <div><span className="font-bold text-slate-700">Lokace:</span> {project.location}</div>}
+                    {project.guests && <div><span className="font-bold text-slate-700">Hostů:</span> {project.guests}</div>}
                   </div>
                 )}
 

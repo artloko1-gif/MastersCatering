@@ -9,9 +9,12 @@ import { Team } from './components/Team';
 import { Locations } from './components/Locations';
 import { Contact } from './components/Contact';
 import { Footer } from './components/Footer';
+import { Login } from './components/Admin/Login';
+import { AdminDashboard } from './components/Admin/AdminDashboard';
+import { ContentProvider } from './contexts/ContentContext';
 import { ArrowUp } from 'lucide-react';
 
-const App: React.FC = () => {
+const PublicSite: React.FC<{ onAdminClick: () => void }> = ({ onAdminClick }) => {
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   useEffect(() => {
@@ -62,7 +65,7 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      <Footer />
+      <Footer onAdminClick={onAdminClick} />
 
       <button
         onClick={scrollToTop}
@@ -74,6 +77,29 @@ const App: React.FC = () => {
         <ArrowUp className="w-6 h-6" />
       </button>
     </div>
+  );
+};
+
+const App: React.FC = () => {
+  const [view, setView] = useState<'public' | 'login' | 'admin'>('public');
+
+  return (
+    <ContentProvider>
+      {view === 'public' && (
+        <PublicSite onAdminClick={() => setView('login')} />
+      )}
+      
+      {view === 'login' && (
+        <Login 
+          onLogin={() => setView('admin')} 
+          onBack={() => setView('public')} 
+        />
+      )}
+
+      {view === 'admin' && (
+        <AdminDashboard onLogout={() => setView('public')} />
+      )}
+    </ContentProvider>
   );
 };
 

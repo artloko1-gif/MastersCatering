@@ -1,7 +1,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useContent } from '../contexts/ContentContext';
 
 export const About: React.FC = () => {
+  const { content } = useContent();
+
   return (
     <section className="py-24 bg-white overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -17,7 +20,7 @@ export const About: React.FC = () => {
             <div className="absolute -top-4 -left-4 w-24 h-24 bg-primary/10 rounded-full -z-10" />
             <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-slate-100 rounded-full -z-10" />
             <img 
-              src="https://images.unsplash.com/photo-1560624052-449f5ddf0c31?q=80&w=1635&auto=format&fit=crop" 
+              src={content.aboutImage}
               alt="Catering detail" 
               className="rounded-2xl shadow-2xl w-full object-cover h-[500px]"
             />

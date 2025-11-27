@@ -1,14 +1,17 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
+import { useContent } from '../contexts/ContentContext';
 
 export const Hero: React.FC = () => {
+  const { content } = useContent();
+
   return (
     <div className="relative h-screen min-h-[600px] flex items-center justify-center overflow-hidden">
       {/* Background Image with Overlay */}
       <div className="absolute inset-0 z-0">
         <img
-          src="https://images.unsplash.com/photo-1555244162-803834f70033?q=80&w=2070&auto=format&fit=crop"
+          src={content.heroImage}
           alt="Elegant catering setup"
           className="w-full h-full object-cover"
         />
