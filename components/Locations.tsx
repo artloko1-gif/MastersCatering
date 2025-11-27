@@ -1,30 +1,17 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Castle, Train, Building2 } from 'lucide-react';
-import { LocationItem } from '../types';
+import { Castle, Train, Building2, MapPin } from 'lucide-react';
+import { useContent } from '../contexts/ContentContext';
 
-const locations: LocationItem[] = [
-  {
-    title: "Rudolfova slévárna",
-    description: "Historické prostory Pražského hradu, ideální pro galavečeře a prestižní firemní akce. Jedinečná atmosféra v srdci Prahy.",
-    imageUrl: "https://images.unsplash.com/photo-1590623253754-52d37c68b75c?q=80&w=1974&auto=format&fit=crop",
-    icon: Castle
-  },
-  {
-    title: "Sál Sirius",
-    description: "Moderní a flexibilní prostory v Pardubicích, vhodné pro konference, plesy a velké oslavy. Nejmodernější technické vybavení.",
-    imageUrl: "https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=2069&auto=format&fit=crop",
-    icon: Building2
-  },
-  {
-    title: "Speciální vlaky",
-    description: "Catering v pohybu - nezapomenutelné zážitky na palubě historických i moderních vlaků. Originální řešení pro netradiční události.",
-    imageUrl: "https://images.unsplash.com/photo-1474487548417-781cb71495f3?q=80&w=2184&auto=format&fit=crop",
-    icon: Train
-  }
-];
+// Icons mapping helper since we can't store functions in JSON/localStorage
+const getIconForIndex = (index: number) => {
+  const icons = [Castle, Building2, Train];
+  return icons[index % icons.length] || MapPin;
+};
 
 export const Locations: React.FC = () => {
+  const { content } = useContent();
+
   return (
     <section className="py-24 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -39,33 +26,37 @@ export const Locations: React.FC = () => {
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
-          {locations.map((loc, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.2 }}
-              className="group relative overflow-hidden rounded-2xl shadow-lg h-[500px]"
-            >
-              <img 
-                src={loc.imageUrl} 
-                alt={loc.title} 
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent opacity-90 transition-opacity duration-300" />
-              
-              <div className="absolute bottom-0 left-0 right-0 p-8 text-white transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
-                <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center mb-4">
-                  <loc.icon size={24} className="text-white" />
+          {content.locations.map((loc, index) => {
+            const Icon = getIconForIndex(index);
+            
+            return (
+              <motion.div
+                key={loc.id}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.2 }}
+                className="group relative overflow-hidden rounded-2xl shadow-lg h-[500px]"
+              >
+                <img 
+                  src={loc.imageUrl} 
+                  alt={loc.title} 
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent opacity-90 transition-opacity duration-300" />
+                
+                <div className="absolute bottom-0 left-0 right-0 p-8 text-white transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                  <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center mb-4">
+                    <Icon size={24} className="text-white" />
+                  </div>
+                  <h3 className="font-serif text-2xl font-bold mb-3">{loc.title}</h3>
+                  <p className="text-slate-200 leading-relaxed opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">
+                    {loc.description}
+                  </p>
                 </div>
-                <h3 className="font-serif text-2xl font-bold mb-3">{loc.title}</h3>
-                <p className="text-slate-200 leading-relaxed opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">
-                  {loc.description}
-                </p>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </div>
       </div>
     </section>
