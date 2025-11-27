@@ -102,7 +102,7 @@ export const Contact: React.FC = () => {
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-2">Typ akce</label>
-                    <select className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all">
+                    <select className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-black">
                       <option>Svatba</option>
                       <option>Firemní večírek</option>
                       <option>Oslava</option>
@@ -115,7 +115,7 @@ export const Contact: React.FC = () => {
                     <input 
                       type="number" 
                       placeholder="Např. 50" 
-                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-black"
                     />
                   </div>
                 </div>
@@ -125,7 +125,7 @@ export const Contact: React.FC = () => {
                   <input 
                     type="text" 
                     placeholder="Kdy a kde se událost koná?" 
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-black"
                   />
                 </div>
 
@@ -135,7 +135,7 @@ export const Contact: React.FC = () => {
                     type="email" 
                     required
                     placeholder="vas@email.cz" 
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-black"
                   />
                 </div>
 
@@ -144,7 +144,7 @@ export const Contact: React.FC = () => {
                   <textarea 
                     rows={4}
                     placeholder="Diety, preferované menu, výzdoba..." 
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all resize-none"
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all resize-none text-black"
                   ></textarea>
                 </div>
 

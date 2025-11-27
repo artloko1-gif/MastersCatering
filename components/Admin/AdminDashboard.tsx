@@ -18,13 +18,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   // New Project State
   const [isAddingProject, setIsAddingProject] = useState(false);
+  // Temporary state for the raw text input of images
+  const [rawImagesInput, setRawImagesInput] = useState('');
+  
   const [newProject, setNewProject] = useState<Partial<PortfolioItem>>({
     title: '',
     client: '',
     date: '',
     guests: 0,
     description: '',
-    imageUrl: '',
+    imageUrls: [],
     tags: []
   });
 
@@ -36,7 +39,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   const handleAddProject = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newProject.title || !newProject.imageUrl) return;
+    if (!newProject.title) return;
+
+    // Parse images from textarea
+    const images = rawImagesInput
+      .split('\n')
+      .map(url => url.trim())
+      .filter(url => url !== '');
+
+    if (images.length === 0) {
+      alert("Prosím zadejte alespoň jednu URL obrázku.");
+      return;
+    }
 
     addProject({
       id: Date.now().toString(),
@@ -46,12 +60,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       guests: Number(newProject.guests),
       location: "Pražský hrad (nebo dle výběru)", // Simplified for demo
       description: newProject.description || '',
-      imageUrl: newProject.imageUrl!,
+      imageUrls: images,
       tags: newProject.tags || ['Nové']
     });
 
     setIsAddingProject(false);
-    setNewProject({ title: '', client: '', date: '', guests: 0, description: '', imageUrl: '', tags: [] });
+    setNewProject({ title: '', client: '', date: '', guests: 0, description: '', imageUrls: [], tags: [] });
+    setRawImagesInput('');
   };
 
   return (
@@ -114,7 +129,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       type="text" 
                       value={heroUrl}
                       onChange={(e) => setHeroUrl(e.target.value)}
-                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm"
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm text-black"
                     />
                   </div>
                   <div className="w-24 h-12 rounded-lg overflow-hidden bg-slate-100">
@@ -131,7 +146,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                       type="text" 
                       value={aboutUrl}
                       onChange={(e) => setAboutUrl(e.target.value)}
-                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm"
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm text-black"
                     />
                   </div>
                   <div className="w-24 h-12 rounded-lg overflow-hidden bg-slate-100">
@@ -173,9 +188,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               </button>
 
               {content.projects.map(project => (
-                <div key={project.id} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden group">
-                  <div className="relative h-48">
-                    <img src={project.imageUrl} alt={project.title} className="w-full h-full object-cover" />
+                <div key={project.id} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden group flex flex-col h-[400px]">
+                  <div className="relative h-48 shrink-0">
+                    {/* Display first image as preview */}
+                    <img src={project.imageUrls[0]} alt={project.title} className="w-full h-full object-cover" />
                     <div className="absolute top-2 right-2">
                       <button 
                         onClick={() => {
@@ -186,11 +202,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         <Trash2 size={16} />
                       </button>
                     </div>
+                    <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-md backdrop-blur-sm">
+                      {project.imageUrls.length} {project.imageUrls.length === 1 ? 'fotka' : (project.imageUrls.length < 5 ? 'fotky' : 'fotek')}
+                    </div>
                   </div>
-                  <div className="p-6">
-                    <h4 className="font-bold text-lg mb-2 line-clamp-1">{project.title}</h4>
-                    <p className="text-sm text-slate-500 mb-4 line-clamp-2">{project.description}</p>
-                    <div className="flex justify-between items-center text-xs text-slate-400">
+                  <div className="p-6 flex flex-col flex-1">
+                    <h4 className="font-bold text-lg mb-2 line-clamp-2">{project.title}</h4>
+                    <p className="text-sm text-slate-500 mb-4 line-clamp-3 flex-1">{project.description}</p>
+                    <div className="flex justify-between items-center text-xs text-slate-400 mt-auto pt-4 border-t border-slate-50">
                       <span>{project.date}</span>
                       <span>{project.client}</span>
                     </div>
@@ -215,35 +234,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               <form onSubmit={handleAddProject} className="p-6 space-y-4">
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Název akce *</label>
-                  <input required className="w-full p-3 bg-slate-50 rounded-lg border border-slate-200" 
+                  <input required className="w-full p-3 bg-slate-50 rounded-lg border border-slate-200 text-black" 
                     value={newProject.title} onChange={e => setNewProject({...newProject, title: e.target.value})} />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-500 mb-1">URL Obrázku *</label>
-                  <input required className="w-full p-3 bg-slate-50 rounded-lg border border-slate-200" 
-                    placeholder="https://..."
-                    value={newProject.imageUrl} onChange={e => setNewProject({...newProject, imageUrl: e.target.value})} />
+                  <label className="block text-xs font-bold uppercase text-slate-500 mb-1">URL Obrázků (jeden na řádek, 1-5)*</label>
+                  <textarea required className="w-full p-3 bg-slate-50 rounded-lg border border-slate-200 text-black font-mono text-sm" 
+                    placeholder={"https://image1.jpg\nhttps://image2.jpg"}
+                    rows={4}
+                    value={rawImagesInput} onChange={e => setRawImagesInput(e.target.value)} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Klient</label>
-                    <input className="w-full p-3 bg-slate-50 rounded-lg border border-slate-200" 
+                    <input className="w-full p-3 bg-slate-50 rounded-lg border border-slate-200 text-black" 
                       value={newProject.client} onChange={e => setNewProject({...newProject, client: e.target.value})} />
                   </div>
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Datum</label>
-                    <input className="w-full p-3 bg-slate-50 rounded-lg border border-slate-200" 
+                    <input className="w-full p-3 bg-slate-50 rounded-lg border border-slate-200 text-black" 
                       value={newProject.date} onChange={e => setNewProject({...newProject, date: e.target.value})} />
                   </div>
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Počet hostů</label>
-                  <input type="number" className="w-full p-3 bg-slate-50 rounded-lg border border-slate-200" 
+                  <input type="number" className="w-full p-3 bg-slate-50 rounded-lg border border-slate-200 text-black" 
                     value={newProject.guests || ''} onChange={e => setNewProject({...newProject, guests: parseInt(e.target.value)})} />
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Popis</label>
-                  <textarea className="w-full p-3 bg-slate-50 rounded-lg border border-slate-200" rows={3}
+                  <textarea className="w-full p-3 bg-slate-50 rounded-lg border border-slate-200 text-black" rows={3}
                     value={newProject.description} onChange={e => setNewProject({...newProject, description: e.target.value})} />
                 </div>
 

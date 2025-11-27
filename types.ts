@@ -19,7 +19,7 @@ export interface PortfolioItem {
   guests?: number;
   location?: string;
   description: string;
-  imageUrl: string;
+  imageUrls: string[]; // Changed from single string to array
   tags: string[];
 }
 

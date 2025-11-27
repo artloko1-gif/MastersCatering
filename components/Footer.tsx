@@ -20,9 +20,9 @@ export const Footer: React.FC<FooterProps> = ({ onAdminClick }) => {
                Doufáme, že se vám naše prezentace líbila a inspirovala Vás k uspořádání nezapomenutelné akce s Master's Catering.
              </p>
              <div className="flex gap-4">
-               <a href="#" className="p-2 bg-slate-800 rounded-full hover:bg-primary hover:text-white transition-colors"><Facebook size={18} /></a>
-               <a href="#" className="p-2 bg-slate-800 rounded-full hover:bg-primary hover:text-white transition-colors"><Instagram size={18} /></a>
-               <a href="#" className="p-2 bg-slate-800 rounded-full hover:bg-primary hover:text-white transition-colors"><Linkedin size={18} /></a>
+               <a href="https://www.facebook.com/masterscater" target="_blank" rel="noopener noreferrer" className="p-2 bg-slate-800 rounded-full hover:bg-primary hover:text-white transition-colors"><Facebook size={18} /></a>
+               <a href="https://www.instagram.com/masterscatering.cz/" target="_blank" rel="noopener noreferrer" className="p-2 bg-slate-800 rounded-full hover:bg-primary hover:text-white transition-colors"><Instagram size={18} /></a>
+               <a href="https://www.linkedin.com/company/8176354" target="_blank" rel="noopener noreferrer" className="p-2 bg-slate-800 rounded-full hover:bg-primary hover:text-white transition-colors"><Linkedin size={18} /></a>
              </div>
           </div>
 
