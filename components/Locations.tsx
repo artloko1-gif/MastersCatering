@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Castle, Train, Building2, MapPin } from 'lucide-react';
@@ -6,7 +7,7 @@ import { useContent } from '../contexts/ContentContext';
 export const Locations: React.FC = () => {
   const { content } = useContent();
 
-  // Mapping icons to indices for display purposes, since icons can't be stored in JSON context
+  // Mapping icons to indices for display purposes
   const getIcon = (index: number) => {
     switch(index) {
       case 0: return Castle;

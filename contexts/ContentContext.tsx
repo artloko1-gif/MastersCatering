@@ -1,5 +1,6 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { ContentContextType, SiteContent, PortfolioItem, LocationItem } from '../types';
+import { ContentContextType, SiteContent, PortfolioItem, LocationItem, TeamContent } from '../types';
 
 const defaultProjects: PortfolioItem[] = [
   {
@@ -50,13 +51,21 @@ const defaultLocations: LocationItem[] = [
   }
 ];
 
+const defaultTeam: TeamContent = {
+  teamImage: "https://images.unsplash.com/photo-1577219491135-ce391730fb2c?q=80&w=2577&auto=format&fit=crop",
+  managerImage: "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=200&auto=format&fit=crop",
+  managerName: "David Schwarczinger",
+  managerRole: "Event & Catering Manager",
+  managerQuote: "Event manažer, který se postará o každý detail vaší akce. Jeho organizační schopnosti a smysl pro estetiku zaručují dokonalý průběh.",
+  teamMotto: "Vaše spokojenost je naší největší odměnou."
+};
+
 const defaultContent: SiteContent = {
   logoUrl: "",
   heroImage: "https://images.unsplash.com/photo-1555244162-803834f70033?q=80&w=2070&auto=format&fit=crop",
   aboutImage: "https://images.unsplash.com/photo-1560624052-449f5ddf0c31?q=80&w=1635&auto=format&fit=crop",
-  teamImage: "https://images.unsplash.com/photo-1577219491135-ce391730fb2c?q=80&w=2577&auto=format&fit=crop",
-  managerImage: "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=200&auto=format&fit=crop",
   contactImage: "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?q=80&w=2664&auto=format&fit=crop",
+  team: defaultTeam,
   locations: defaultLocations,
   projects: defaultProjects
 };
@@ -65,41 +74,56 @@ const ContentContext = createContext<ContentContextType | undefined>(undefined);
 
 export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [content, setContent] = useState<SiteContent>(() => {
-    const saved = localStorage.getItem('siteContent');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      // Ensure all new fields exist if loading from older local storage data
-      return {
-        ...defaultContent,
-        ...parsed,
-        locations: parsed.locations || defaultContent.locations,
-        teamImage: parsed.teamImage || defaultContent.teamImage,
-        managerImage: parsed.managerImage || defaultContent.managerImage,
-        contactImage: parsed.contactImage || defaultContent.contactImage,
-      };
+    try {
+      const saved = localStorage.getItem('siteContent_v2');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return { ...defaultContent, ...parsed };
+      }
+    } catch (e) {
+      console.error("Failed to load content from local storage", e);
     }
     return defaultContent;
   });
 
   useEffect(() => {
-    localStorage.setItem('siteContent', JSON.stringify(content));
+    try {
+      localStorage.setItem('siteContent_v2', JSON.stringify(content));
+    } catch (e) {
+      console.error("Local Storage Quota Exceeded. Images might be too large.", e);
+      alert("Pozor: Změny nebyly uloženy trvale, protože obrázky jsou příliš velké pro paměť prohlížeče. Pro produkční verzi by byl potřeba backend server.");
+    }
   }, [content]);
 
   const updateContent = (newContent: Partial<SiteContent>) => {
+    setContent(prev => ({ ...prev, ...newContent }));
+  };
+
+  const updateTeam = (teamData: Partial<TeamContent>) => {
     setContent(prev => ({
       ...prev,
-      ...newContent
+      team: { ...prev.team, ...teamData }
     }));
   };
 
-  const updateGlobalImages = (hero: string, about: string) => {
-    updateContent({ heroImage: hero, aboutImage: about });
+  const updateLocation = (id: string, data: Partial<LocationItem>) => {
+    setContent(prev => ({
+      ...prev,
+      locations: prev.locations.map(loc => loc.id === id ? { ...loc, ...data } : loc)
+    }));
   };
 
   const addProject = (project: PortfolioItem) => {
     setContent(prev => ({
       ...prev,
       projects: [project, ...prev.projects]
+    }));
+  };
+
+  const updateProject = (id: string, projectData: Partial<PortfolioItem>) => {
+    setContent(prev => ({
+      ...prev,
+      projects: prev.projects.map(p => p.id === id ? { ...p, ...projectData } : p)
     }));
   };
 
@@ -111,7 +135,15 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   return (
-    <ContentContext.Provider value={{ content, updateContent, updateGlobalImages, addProject, removeProject }}>
+    <ContentContext.Provider value={{ 
+      content, 
+      updateContent, 
+      updateTeam,
+      updateLocation,
+      addProject, 
+      updateProject,
+      removeProject 
+    }}>
       {children}
     </ContentContext.Provider>
   );

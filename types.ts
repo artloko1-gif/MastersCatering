@@ -1,3 +1,4 @@
+
 import { LucideIcon } from 'lucide-react';
 
 export interface NavItem {
@@ -28,16 +29,23 @@ export interface LocationItem {
   title: string;
   description: string;
   imageUrl: string;
-  // Icon is handled by component mapping to avoid serialization issues
+}
+
+export interface TeamContent {
+  teamImage: string;
+  managerImage: string;
+  managerName: string;
+  managerRole: string;
+  managerQuote: string;
+  teamMotto: string;
 }
 
 export interface SiteContent {
   logoUrl: string;
   heroImage: string;
   aboutImage: string;
-  teamImage: string;
-  managerImage: string;
   contactImage: string;
+  team: TeamContent;
   locations: LocationItem[];
   projects: PortfolioItem[];
 }
@@ -45,7 +53,11 @@ export interface SiteContent {
 export interface ContentContextType {
   content: SiteContent;
   updateContent: (newContent: Partial<SiteContent>) => void;
-  updateGlobalImages: (hero: string, about: string) => void; // Keep for backward compatibility or refactor
+  // Specific helpers
+  updateTeam: (teamData: Partial<TeamContent>) => void;
+  updateLocation: (id: string, data: Partial<LocationItem>) => void;
+  // Project management
   addProject: (project: PortfolioItem) => void;
+  updateProject: (id: string, project: Partial<PortfolioItem>) => void;
   removeProject: (id: string) => void;
 }
