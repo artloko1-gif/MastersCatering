@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, X, UtensilsCrossed } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useContent } from '../contexts/ContentContext';
 
 const navLinks = [
   { name: 'Úvod', href: '#home' },
@@ -14,6 +15,7 @@ const navLinks = [
 export const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const { content } = useContent();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -31,16 +33,23 @@ export const Navbar: React.FC = () => {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
+          {/* Logo Section */}
           <div className="flex-shrink-0 flex items-center gap-2 cursor-pointer" onClick={() => window.scrollTo(0,0)}>
-            <div className={`p-2 rounded-full ${isScrolled ? 'bg-primary text-white' : 'bg-white text-primary'}`}>
-               <UtensilsCrossed size={24} />
-            </div>
-            <span className={`font-serif text-2xl font-bold tracking-tight ${isScrolled ? 'text-primary-dark' : 'text-white drop-shadow-md'}`}>
-              Master's Catering
-            </span>
+            {content.logoUrl ? (
+              <img src={content.logoUrl} alt="Logo" className="h-12 w-auto object-contain" />
+            ) : (
+              <>
+                <div className={`p-2 rounded-full ${isScrolled ? 'bg-primary text-white' : 'bg-white text-primary'}`}>
+                   <UtensilsCrossed size={24} />
+                </div>
+                <span className={`font-serif text-2xl font-bold tracking-tight ${isScrolled ? 'text-primary-dark' : 'text-white drop-shadow-md'}`}>
+                  Master's Catering
+                </span>
+              </>
+            )}
           </div>
           
-          <div className="hidden md:flex space-x-8">
+          <div className="hidden md:flex space-x-8 items-center">
             {navLinks.map((link) => (
               <a
                 key={link.name}
@@ -56,7 +65,7 @@ export const Navbar: React.FC = () => {
             ))}
             <a
                href="#contact"
-               className={`px-5 py-2 rounded-full text-sm font-bold transition-all ${
+               className={`px-5 py-2 rounded-full text-sm font-bold transition-all -translate-y-0.5 ${
                  isScrolled 
                    ? 'bg-primary text-white hover:bg-primary-dark' 
                    : 'bg-white text-primary hover:bg-slate-100'

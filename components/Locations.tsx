@@ -3,14 +3,18 @@ import { motion } from 'framer-motion';
 import { Castle, Train, Building2, MapPin } from 'lucide-react';
 import { useContent } from '../contexts/ContentContext';
 
-// Icons mapping helper since we can't store functions in JSON/localStorage
-const getIconForIndex = (index: number) => {
-  const icons = [Castle, Building2, Train];
-  return icons[index % icons.length] || MapPin;
-};
-
 export const Locations: React.FC = () => {
   const { content } = useContent();
+
+  // Mapping icons to indices for display purposes, since icons can't be stored in JSON context
+  const getIcon = (index: number) => {
+    switch(index) {
+      case 0: return Castle;
+      case 1: return Building2;
+      case 2: return Train;
+      default: return MapPin;
+    }
+  };
 
   return (
     <section className="py-24 bg-white">
@@ -27,8 +31,7 @@ export const Locations: React.FC = () => {
 
         <div className="grid lg:grid-cols-3 gap-8">
           {content.locations.map((loc, index) => {
-            const Icon = getIconForIndex(index);
-            
+            const Icon = getIcon(index);
             return (
               <motion.div
                 key={loc.id}

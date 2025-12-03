@@ -28,36 +28,24 @@ export interface LocationItem {
   title: string;
   description: string;
   imageUrl: string;
-  // Icons are handled in the component mapping to avoid serializing functions
-}
-
-export interface TeamContent {
-  groupImage: string;
-  managerImage: string;
-  managerName: string;
-  managerRole: string;
-  managerQuote: string;
-  teamMotto: string;
+  // Icon is handled by component mapping to avoid serialization issues
 }
 
 export interface SiteContent {
+  logoUrl: string;
   heroImage: string;
   aboutImage: string;
-  projects: PortfolioItem[];
+  teamImage: string;
+  managerImage: string;
+  contactImage: string;
   locations: LocationItem[];
-  team: TeamContent;
+  projects: PortfolioItem[];
 }
 
 export interface ContentContextType {
   content: SiteContent;
-  updateGlobalImages: (hero: string, about: string) => void;
-  
-  // Projects
+  updateContent: (newContent: Partial<SiteContent>) => void;
+  updateGlobalImages: (hero: string, about: string) => void; // Keep for backward compatibility or refactor
   addProject: (project: PortfolioItem) => void;
-  updateProject: (id: string, project: PortfolioItem) => void;
   removeProject: (id: string) => void;
-  
-  // Other Sections
-  updateTeam: (data: TeamContent) => void;
-  updateLocations: (locations: LocationItem[]) => void;
 }

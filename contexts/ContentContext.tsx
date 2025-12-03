@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { ContentContextType, SiteContent, PortfolioItem, LocationItem, TeamContent } from '../types';
+import { ContentContextType, SiteContent, PortfolioItem, LocationItem } from '../types';
 
 const defaultProjects: PortfolioItem[] = [
   {
@@ -31,92 +31,75 @@ const defaultProjects: PortfolioItem[] = [
 
 const defaultLocations: LocationItem[] = [
   {
-    id: 'l1',
+    id: '1',
     title: "Rudolfova slévárna",
     description: "Historické prostory Pražského hradu, ideální pro galavečeře a prestižní firemní akce. Jedinečná atmosféra v srdci Prahy.",
     imageUrl: "https://images.unsplash.com/photo-1590623253754-52d37c68b75c?q=80&w=1974&auto=format&fit=crop"
   },
   {
-    id: 'l2',
+    id: '2',
     title: "Sál Sirius",
     description: "Moderní a flexibilní prostory v Pardubicích, vhodné pro konference, plesy a velké oslavy. Nejmodernější technické vybavení.",
     imageUrl: "https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=2069&auto=format&fit=crop"
   },
   {
-    id: 'l3',
+    id: '3',
     title: "Speciální vlaky",
     description: "Catering v pohybu - nezapomenutelné zážitky na palubě historických i moderních vlaků. Originální řešení pro netradiční události.",
     imageUrl: "https://images.unsplash.com/photo-1474487548417-781cb71495f3?q=80&w=2184&auto=format&fit=crop"
   }
 ];
 
-const defaultTeam: TeamContent = {
-  groupImage: "https://images.unsplash.com/photo-1577219491135-ce391730fb2c?q=80&w=2577&auto=format&fit=crop",
-  managerImage: "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=200&auto=format&fit=crop",
-  managerName: "David Schwarczinger",
-  managerRole: "Event & Catering Manager",
-  managerQuote: "Event manažer, který se postará o každý detail vaší akce. Jeho organizační schopnosti a smysl pro estetiku zaručují dokonalý průběh.",
-  teamMotto: "Vaše spokojenost je naší největší odměnou."
-};
-
 const defaultContent: SiteContent = {
+  logoUrl: "",
   heroImage: "https://images.unsplash.com/photo-1555244162-803834f70033?q=80&w=2070&auto=format&fit=crop",
   aboutImage: "https://images.unsplash.com/photo-1560624052-449f5ddf0c31?q=80&w=1635&auto=format&fit=crop",
-  projects: defaultProjects,
+  teamImage: "https://images.unsplash.com/photo-1577219491135-ce391730fb2c?q=80&w=2577&auto=format&fit=crop",
+  managerImage: "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=200&auto=format&fit=crop",
+  contactImage: "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?q=80&w=2664&auto=format&fit=crop",
   locations: defaultLocations,
-  team: defaultTeam
+  projects: defaultProjects
 };
 
 const ContentContext = createContext<ContentContextType | undefined>(undefined);
 
 export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [content, setContent] = useState<SiteContent>(() => {
-    try {
-      const saved = localStorage.getItem('siteContent');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        // Ensure backward compatibility if structure changed
-        return {
-          ...defaultContent,
-          ...parsed,
-          projects: parsed.projects || defaultProjects,
-          locations: parsed.locations || defaultLocations,
-          team: { ...defaultTeam, ...parsed.team }
-        };
-      }
-    } catch (e) {
-      console.error("Failed to load content from localStorage", e);
+    const saved = localStorage.getItem('siteContent');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Ensure all new fields exist if loading from older local storage data
+      return {
+        ...defaultContent,
+        ...parsed,
+        locations: parsed.locations || defaultContent.locations,
+        teamImage: parsed.teamImage || defaultContent.teamImage,
+        managerImage: parsed.managerImage || defaultContent.managerImage,
+        contactImage: parsed.contactImage || defaultContent.contactImage,
+      };
     }
     return defaultContent;
   });
 
   useEffect(() => {
-    try {
-      localStorage.setItem('siteContent', JSON.stringify(content));
-    } catch (e) {
-      console.warn("Storage quota exceeded. Changes will not persist after refresh if images are too large.", e);
-    }
+    localStorage.setItem('siteContent', JSON.stringify(content));
   }, [content]);
 
-  const updateGlobalImages = (hero: string, about: string) => {
+  const updateContent = (newContent: Partial<SiteContent>) => {
     setContent(prev => ({
       ...prev,
-      heroImage: hero,
-      aboutImage: about
+      ...newContent
     }));
+  };
+
+  const updateGlobalImages = (hero: string, about: string) => {
+    updateContent({ heroImage: hero, aboutImage: about });
   };
 
   const addProject = (project: PortfolioItem) => {
     setContent(prev => ({
       ...prev,
       projects: [project, ...prev.projects]
-    }));
-  };
-
-  const updateProject = (id: string, updatedProject: PortfolioItem) => {
-    setContent(prev => ({
-      ...prev,
-      projects: prev.projects.map(p => p.id === id ? updatedProject : p)
     }));
   };
 
@@ -127,30 +110,8 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }));
   };
 
-  const updateTeam = (data: TeamContent) => {
-    setContent(prev => ({
-      ...prev,
-      team: data
-    }));
-  };
-
-  const updateLocations = (locations: LocationItem[]) => {
-    setContent(prev => ({
-      ...prev,
-      locations
-    }));
-  };
-
   return (
-    <ContentContext.Provider value={{ 
-      content, 
-      updateGlobalImages, 
-      addProject, 
-      updateProject,
-      removeProject,
-      updateTeam,
-      updateLocations
-    }}>
+    <ContentContext.Provider value={{ content, updateContent, updateGlobalImages, addProject, removeProject }}>
       {children}
     </ContentContext.Provider>
   );

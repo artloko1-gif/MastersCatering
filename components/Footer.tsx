@@ -1,11 +1,14 @@
 import React from 'react';
 import { UtensilsCrossed, Facebook, Instagram, Linkedin, Lock } from 'lucide-react';
+import { useContent } from '../contexts/ContentContext';
 
 interface FooterProps {
   onAdminClick?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({ onAdminClick }) => {
+  const { content } = useContent();
+
   return (
     <footer className="bg-slate-900 text-slate-400 border-t border-slate-800 pt-16 pb-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -13,8 +16,14 @@ export const Footer: React.FC<FooterProps> = ({ onAdminClick }) => {
           
           <div className="col-span-1 md:col-span-1">
              <div className="flex items-center gap-2 text-white mb-6">
-                <UtensilsCrossed size={24} className="text-primary" />
-                <span className="font-serif text-xl font-bold">Master's Catering</span>
+                {content.logoUrl ? (
+                   <img src={content.logoUrl} alt="Master's Catering" className="h-8 w-auto object-contain brightness-0 invert" />
+                ) : (
+                  <>
+                    <UtensilsCrossed size={24} className="text-primary" />
+                    <span className="font-serif text-xl font-bold">Master's Catering</span>
+                  </>
+                )}
              </div>
              <p className="text-sm leading-relaxed mb-6">
                Doufáme, že se vám naše prezentace líbila a inspirovala Vás k uspořádání nezapomenutelné akce s Master's Catering.

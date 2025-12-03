@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Phone, Mail, MapPin, Send } from 'lucide-react';
+import { useContent } from '../contexts/ContentContext';
 
 export const Contact: React.FC = () => {
+  const { content } = useContent();
   const [formStatus, setFormStatus] = useState<'idle' | 'sending' | 'success'>('idle');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -71,8 +73,8 @@ export const Contact: React.FC = () => {
 
             <div className="mt-12 rounded-2xl overflow-hidden shadow-2xl h-64 border border-white/10">
               <img 
-                src="https://images.unsplash.com/photo-1556761175-5973dc0f32e7?q=80&w=2664&auto=format&fit=crop" 
-                alt="Office building placeholder" 
+                src={content.contactImage}
+                alt="Sídlo JLV nebo cateringové prostory" 
                 className="w-full h-full object-cover opacity-60 hover:opacity-80 transition-opacity"
               />
             </div>
