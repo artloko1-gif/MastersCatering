@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Menu, X, UtensilsCrossed } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -25,6 +26,18 @@ export const Navbar: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Logic to determine which logo image to show
+  // If scrolled (white bg) -> prefer LightBgUrl, fallback to generic logoUrl
+  // If top (transparent bg) -> prefer DarkBgUrl, fallback to generic logoUrl
+  const activeLogo = isScrolled 
+    ? (content.logoLightBgUrl || content.logoUrl) 
+    : (content.logoDarkBgUrl || content.logoUrl);
+
+  // Logic to determine if we need to force the logo to white using CSS filters
+  // We do this ONLY if we are at the top (!isScrolled) AND we are using the generic fallback logo 
+  // (assuming the generic logo is dark/colored and needs to be white on the dark hero image)
+  const shouldInvertLogo = !isScrolled && !content.logoDarkBgUrl && content.logoUrl;
+
   return (
     <nav
       className={`fixed w-full z-50 transition-all duration-300 ${
@@ -35,8 +48,12 @@ export const Navbar: React.FC = () => {
         <div className="flex justify-between items-center h-16">
           {/* Logo Section */}
           <div className="flex-shrink-0 flex items-center gap-2 cursor-pointer" onClick={() => window.scrollTo(0,0)}>
-            {content.logoUrl ? (
-              <img src={content.logoUrl} alt="Logo" className="h-12 w-auto object-contain" />
+            {activeLogo ? (
+              <img 
+                src={activeLogo} 
+                alt="Logo" 
+                className={`h-12 w-auto object-contain transition-all duration-300 ${shouldInvertLogo ? 'brightness-0 invert' : ''}`} 
+              />
             ) : (
               <>
                 <div className={`p-2 rounded-full ${isScrolled ? 'bg-primary text-white' : 'bg-white text-primary'}`}>
