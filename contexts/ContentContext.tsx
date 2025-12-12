@@ -1,7 +1,9 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { ContentContextType, SiteContent, PortfolioItem, LocationItem, TeamContent } from '../types';
+import { ContentContextType, SiteContent, PortfolioItem, LocationItem, TeamContent, Inquiry } from '../types';
+import { saveContentToDB, getContentFromDB } from '../utils/db';
 
+// --- Default Data Constants (Fallback) ---
 const defaultProjects: PortfolioItem[] = [
   {
     id: '1',
@@ -60,40 +62,61 @@ const defaultTeam: TeamContent = {
   teamMotto: "Vaše spokojenost je naší největší odměnou."
 };
 
+const defaultTextContent = {
+  heroTitle: "Váš partner pro\nnezapomenutelné\ngastronomické zážitky",
+  heroSubtitle: "Dovolte nám přetvořit vaše představy v kulinářskou realitu. V Master's Catering se specializujeme na vytváření jedinečných gastronomických zážitků.",
+  heroTagline: "Exkluzivní Cateringové Služby",
+  aboutTitle: "Vítejte u Master's Catering",
+  aboutDescription: "Vítejte ve světě Master's Catering, kde se spojuje špičková gastronomie s dokonalým servisem. Vytváříme svěží a elegantní prostředí pro vaše nezapomenutelné události.\n\nProžijte s námi kulinářský zážitek, který si budete pamatovat. Jsme připraveni proměnit jakoukoliv událost v jedinečnou slavnost. Ať už plánujete firemní večírek nebo svatbu snů, jsme tu pro vás."
+};
+
 const defaultContent: SiteContent = {
-  logoUrl: "",
+  logoDarkBgUrl: "",
+  logoLightBgUrl: "",
+  // Backwards compatibility field (can be removed later if not needed, but kept for type safety)
+  logoUrl: "", 
   heroImage: "https://images.unsplash.com/photo-1555244162-803834f70033?q=80&w=2070&auto=format&fit=crop",
   aboutImage: "https://images.unsplash.com/photo-1560624052-449f5ddf0c31?q=80&w=1635&auto=format&fit=crop",
   contactImage: "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?q=80&w=2664&auto=format&fit=crop",
+  textContent: defaultTextContent,
   team: defaultTeam,
   locations: defaultLocations,
-  projects: defaultProjects
+  projects: defaultProjects,
+  inquiries: []
 };
 
 const ContentContext = createContext<ContentContextType | undefined>(undefined);
 
 export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [content, setContent] = useState<SiteContent>(() => {
-    try {
-      const saved = localStorage.getItem('siteContent_v2');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return { ...defaultContent, ...parsed };
-      }
-    } catch (e) {
-      console.error("Failed to load content from local storage", e);
-    }
-    return defaultContent;
-  });
+  const [content, setContent] = useState<SiteContent>(defaultContent);
+  const [isInitialized, setIsInitialized] = useState(false);
 
+  // Load content from IndexedDB on mount
   useEffect(() => {
-    try {
-      localStorage.setItem('siteContent_v2', JSON.stringify(content));
-    } catch (e) {
-      console.error("Local Storage Quota Exceeded. Images might be too large.", e);
-      alert("Pozor: Změny nebyly uloženy trvale, protože obrázky jsou příliš velké pro paměť prohlížeče. Pro produkční verzi by byl potřeba backend server.");
+    const load = async () => {
+      try {
+        const dbContent = await getContentFromDB();
+        if (dbContent) {
+          // Merge with default to ensure new fields (like inquiries) exist if DB has old structure
+          setContent(prev => ({ ...defaultContent, ...dbContent }));
+        }
+      } catch (e) {
+        console.error("Failed to load content from DB", e);
+      } finally {
+        setIsInitialized(true);
+      }
+    };
+    load();
+  }, []);
+
+  // Save content to IndexedDB whenever it changes (debounced could be better, but direct is fine for now with IDB)
+  useEffect(() => {
+    if (isInitialized) {
+      saveContentToDB(content).catch(err => {
+        console.error("Failed to save to DB:", err);
+      });
     }
-  }, [content]);
+  }, [content, isInitialized]);
 
   const updateContent = (newContent: Partial<SiteContent>) => {
     setContent(prev => ({ ...prev, ...newContent }));
@@ -134,6 +157,24 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }));
   };
 
+  const addInquiry = (inquiry: Inquiry) => {
+    setContent(prev => ({
+      ...prev,
+      inquiries: [inquiry, ...(prev.inquiries || [])]
+    }));
+  };
+
+  const removeInquiry = (id: string) => {
+    setContent(prev => ({
+      ...prev,
+      inquiries: (prev.inquiries || []).filter(i => i.id !== id)
+    }));
+  };
+
+  if (!isInitialized) {
+     return <div className="h-screen w-full flex items-center justify-center text-slate-500">Načítám obsah...</div>;
+  }
+
   return (
     <ContentContext.Provider value={{ 
       content, 
@@ -142,7 +183,9 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
       updateLocation,
       addProject, 
       updateProject,
-      removeProject 
+      removeProject,
+      addInquiry,
+      removeInquiry
     }}>
       {children}
     </ContentContext.Provider>

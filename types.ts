@@ -1,4 +1,3 @@
-
 import { LucideIcon } from 'lucide-react';
 
 export interface NavItem {
@@ -40,14 +39,36 @@ export interface TeamContent {
   teamMotto: string;
 }
 
+export interface Inquiry {
+  id: string;
+  createdAt: string;
+  eventType: string;
+  guests: number;
+  dateLocation: string;
+  email: string;
+  requirements: string;
+}
+
+export interface TextContent {
+  heroTitle?: string;
+  heroSubtitle?: string;
+  heroTagline?: string;
+  aboutTitle?: string;
+  aboutDescription?: string;
+}
+
 export interface SiteContent {
   logoUrl: string;
+  logoDarkBgUrl?: string;
+  logoLightBgUrl?: string;
   heroImage: string;
   aboutImage: string;
   contactImage: string;
   team: TeamContent;
   locations: LocationItem[];
   projects: PortfolioItem[];
+  textContent?: TextContent;
+  inquiries?: Inquiry[];
 }
 
 export interface ContentContextType {
@@ -60,4 +81,7 @@ export interface ContentContextType {
   addProject: (project: PortfolioItem) => void;
   updateProject: (id: string, project: Partial<PortfolioItem>) => void;
   removeProject: (id: string) => void;
+  // Inquiry management
+  addInquiry: (inquiry: Inquiry) => void;
+  removeInquiry: (id: string) => void;
 }

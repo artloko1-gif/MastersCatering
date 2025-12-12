@@ -1,14 +1,52 @@
 
+
 import React, { useState } from 'react';
 import { useContent } from '../../contexts/ContentContext';
-import { LogOut, Image as ImageIcon, Briefcase, Plus, Trash2, Save, X, Upload, Pencil, Users, MapPin } from 'lucide-react';
+import { LogOut, Image as ImageIcon, Briefcase, Plus, Trash2, Save, X, Upload, Pencil, Users, MapPin, AlignLeft, MessageSquare, Check, Calendar, Mail } from 'lucide-react';
 import { PortfolioItem, LocationItem } from '../../types';
 
 interface AdminDashboardProps {
   onLogout: () => void;
 }
 
-// Internal component for handling file uploads (Base64)
+// --- Image Compression Utility ---
+const compressImage = (file: File, maxWidth = 1200, quality = 0.7): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            resolve(event.target?.result as string);
+            return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Convert to JPEG with reduced quality
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressedDataUrl);
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
+};
+
+// Internal component for handling file uploads (Base64 + Compression)
 const ImageUpload: React.FC<{ 
   currentImage: string; 
   onImageChange: (base64: string) => void;
@@ -17,18 +55,16 @@ const ImageUpload: React.FC<{
   isAvatar?: boolean;
 }> = ({ currentImage, onImageChange, label, description, isAvatar = false }) => {
   
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 10 * 1024 * 1024) { // 10MB limit check
-         alert("Obrázek je příliš velký (max 10MB).");
-         return;
+      try {
+        const compressedBase64 = await compressImage(file, isAvatar ? 400 : 1200);
+        onImageChange(compressedBase64);
+      } catch (error) {
+        console.error("Compression failed", error);
+        alert("Chyba při zpracování obrázku.");
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        onImageChange(reader.result as string);
-      };
-      reader.readAsDataURL(file);
     }
   };
 
@@ -61,8 +97,8 @@ const ImageUpload: React.FC<{
 };
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
-  const { content, updateContent, updateTeam, updateLocation, addProject, updateProject, removeProject } = useContent();
-  const [activeTab, setActiveTab] = useState<'images' | 'team' | 'locations' | 'projects'>('images');
+  const { content, updateContent, updateTeam, updateLocation, addProject, updateProject, removeProject, removeInquiry } = useContent();
+  const [activeTab, setActiveTab] = useState<'images' | 'texts' | 'team' | 'locations' | 'projects' | 'inquiries'>('inquiries');
   
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saved'>('idle');
 
@@ -101,7 +137,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     e.preventDefault();
     if (!projectForm.title) return;
 
-    // Handle Tags parsing (simple comma separated for now, but UI doesn't explicitly ask for it yet in the simpler form, defaults added)
     const tags = projectForm.tags && projectForm.tags.length > 0 ? projectForm.tags : ['Reference'];
 
     if (editingProjectId) {
@@ -124,46 +159,44 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     }
 
     setIsModalOpen(false);
+    triggerSave();
   };
 
-  const handleProjectImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProjectImagesChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      const fileArray = Array.from(files);
-      const validFiles = fileArray.filter((file: File) => file.size <= 10 * 1024 * 1024);
-      
-      if (validFiles.length < fileArray.length) {
-         alert("Některé obrázky byly vynechány, protože přesahují 10MB.");
-      }
-
-      if (validFiles.length === 0) return;
-
+      const fileArray = Array.from(files) as File[];
       const newImages: string[] = [];
       let processedCount = 0;
 
-      validFiles.forEach((file: File) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-             if (reader.result) {
-                newImages.push(reader.result as string);
-             }
-             processedCount++;
-             
-             // When all valid files are processed
-             if (processedCount === validFiles.length) {
-                setProjectForm(prev => ({
-                   ...prev,
-                   imageUrls: [...(prev.imageUrls || []), ...newImages]
-                }));
-             }
-          };
-          reader.readAsDataURL(file);
-      });
+      for (const file of fileArray) {
+        try {
+          const compressed = await compressImage(file, 1200);
+          newImages.push(compressed);
+        } catch (err) {
+          console.error("Skipped image due to error", err);
+        }
+        processedCount++;
+      }
+
+      setProjectForm(prev => ({
+          ...prev,
+          imageUrls: [...(prev.imageUrls || []), ...newImages]
+      }));
+    }
+  };
+
+  // Function to format date safely
+  const formatDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleString('cs-CZ');
+    } catch {
+      return dateString;
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 pb-20">
       {/* Admin Nav */}
       <nav className="bg-slate-900 text-white shadow-lg sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -184,6 +217,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         
         {/* Tabs */}
         <div className="flex flex-wrap gap-4 mb-8">
+           <button onClick={() => setActiveTab('inquiries')} className={`flex items-center gap-2 px-6 py-3 rounded-lg font-bold transition-all ${activeTab === 'inquiries' ? 'bg-primary text-white shadow-lg' : 'bg-white text-slate-600 hover:bg-slate-100'}`}>
+            <MessageSquare size={20} /> Poptávky
+            {content.inquiries && content.inquiries.length > 0 && (
+              <span className="bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                {content.inquiries.length}
+              </span>
+            )}
+          </button>
+          <button onClick={() => setActiveTab('texts')} className={`flex items-center gap-2 px-6 py-3 rounded-lg font-bold transition-all ${activeTab === 'texts' ? 'bg-primary text-white shadow-lg' : 'bg-white text-slate-600 hover:bg-slate-100'}`}>
+            <AlignLeft size={20} /> Texty
+          </button>
           <button onClick={() => setActiveTab('images')} className={`flex items-center gap-2 px-6 py-3 rounded-lg font-bold transition-all ${activeTab === 'images' ? 'bg-primary text-white shadow-lg' : 'bg-white text-slate-600 hover:bg-slate-100'}`}>
             <ImageIcon size={20} /> Hlavní foto
           </button>
@@ -198,16 +242,138 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           </button>
         </div>
 
+        {/* ================== INQUIRIES TAB ================== */}
+        {activeTab === 'inquiries' && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 max-w-4xl">
+             <div className="flex justify-between items-center mb-6">
+               <h3 className="font-serif text-2xl font-bold text-slate-800">Doručené poptávky</h3>
+               <span className="text-sm text-slate-500">Celkem: {content.inquiries?.length || 0}</span>
+             </div>
+
+             {(!content.inquiries || content.inquiries.length === 0) ? (
+               <div className="text-center py-12 text-slate-400 bg-slate-50 rounded-xl">
+                 <MessageSquare size={48} className="mx-auto mb-4 opacity-50" />
+                 <p>Zatím žádné poptávky.</p>
+               </div>
+             ) : (
+               <div className="space-y-4">
+                 {content.inquiries.map((inq) => (
+                   <div key={inq.id} className="bg-slate-50 border border-slate-200 rounded-xl p-6 relative hover:shadow-md transition-shadow">
+                     <div className="grid md:grid-cols-2 gap-4 mb-4">
+                       <div>
+                         <div className="flex items-center gap-2 text-primary font-bold mb-1">
+                           <Calendar size={16} /> {formatDate(inq.createdAt)}
+                         </div>
+                         <h4 className="text-lg font-bold text-slate-900">{inq.eventType} ({inq.guests} hostů)</h4>
+                       </div>
+                       <div className="md:text-right">
+                          <div className="flex items-center gap-2 justify-start md:justify-end text-slate-700">
+                             <Mail size={16} /> <a href={`mailto:${inq.email}`} className="hover:underline font-medium">{inq.email}</a>
+                          </div>
+                          <div className="text-sm text-slate-500 mt-1">
+                             <MapPin size={14} className="inline mr-1"/> {inq.dateLocation}
+                          </div>
+                       </div>
+                     </div>
+                     
+                     <div className="bg-white p-4 rounded-lg border border-slate-100 text-slate-700 mb-4">
+                       <p className="whitespace-pre-wrap">{inq.requirements}</p>
+                     </div>
+
+                     <div className="flex justify-end">
+                       <button 
+                         onClick={() => {
+                           if(confirm('Opravdu chcete tuto poptávku smazat?')) removeInquiry(inq.id);
+                         }}
+                         className="flex items-center gap-2 text-red-500 hover:text-red-700 text-sm font-medium px-3 py-2 rounded-lg hover:bg-red-50 transition-colors"
+                       >
+                         <Trash2 size={16} /> Smazat poptávku
+                       </button>
+                     </div>
+                   </div>
+                 ))}
+               </div>
+             )}
+          </div>
+        )}
+
+        {/* ================== TEXTS TAB ================== */}
+        {activeTab === 'texts' && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 max-w-3xl">
+            <h3 className="font-serif text-2xl font-bold text-slate-800 mb-6">Editace textů</h3>
+            
+            <div className="space-y-6">
+              <h4 className="font-bold text-primary uppercase tracking-wider text-sm border-b pb-2">Úvodní sekce (Hero)</h4>
+              <div>
+                <label className="block text-sm font-black text-black mb-1 uppercase">Hlavní nadpis</label>
+                <textarea 
+                  className="w-full p-2 border rounded text-black font-serif text-lg" 
+                  rows={3}
+                  value={content.textContent?.heroTitle} 
+                  onChange={(e) => { updateContent({ textContent: { ...content.textContent!, heroTitle: e.target.value } }); triggerSave(); }}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-black text-black mb-1 uppercase">Podnadpis (Malý text nad)</label>
+                <input 
+                  type="text" 
+                  className="w-full p-2 border rounded text-black" 
+                  value={content.textContent?.heroTagline} 
+                  onChange={(e) => { updateContent({ textContent: { ...content.textContent!, heroTagline: e.target.value } }); triggerSave(); }}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-black text-black mb-1 uppercase">Popis (Slogan pod)</label>
+                <textarea 
+                  className="w-full p-2 border rounded text-black" 
+                  rows={3}
+                  value={content.textContent?.heroSubtitle} 
+                  onChange={(e) => { updateContent({ textContent: { ...content.textContent!, heroSubtitle: e.target.value } }); triggerSave(); }}
+                />
+              </div>
+
+              <h4 className="font-bold text-primary uppercase tracking-wider text-sm border-b pb-2 mt-8">Sekce O nás</h4>
+              <div>
+                <label className="block text-sm font-black text-black mb-1 uppercase">Nadpis</label>
+                <input 
+                  type="text" 
+                  className="w-full p-2 border rounded text-black font-serif" 
+                  value={content.textContent?.aboutTitle} 
+                  onChange={(e) => { updateContent({ textContent: { ...content.textContent!, aboutTitle: e.target.value } }); triggerSave(); }}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-black text-black mb-1 uppercase">Hlavní text</label>
+                <textarea 
+                  className="w-full p-2 border rounded text-black h-40" 
+                  value={content.textContent?.aboutDescription} 
+                  onChange={(e) => { updateContent({ textContent: { ...content.textContent!, aboutDescription: e.target.value } }); triggerSave(); }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ================== GENERAL IMAGES TAB ================== */}
         {activeTab === 'images' && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 max-w-3xl">
             <h3 className="font-serif text-2xl font-bold text-slate-800 mb-6">Základní fotografie webu</h3>
             
             <ImageUpload 
-               label="Logo Firmy" 
-               currentImage={content.logoUrl} 
-               onImageChange={(val) => { updateContent({ logoUrl: val }); triggerSave(); }} 
+               label="Logo (pro tmavé pozadí)" 
+               description="Zobrazí se nahoře na banneru. Ideálně bílé/světlé PNG."
+               currentImage={content.logoDarkBgUrl || content.logoUrl} 
+               onImageChange={(val) => { updateContent({ logoDarkBgUrl: val }); triggerSave(); }} 
             />
+            <ImageUpload 
+               label="Logo (pro světlé pozadí)" 
+               description="Zobrazí se při scrollování na bílé liště. Ideálně tmavé PNG."
+               currentImage={content.logoLightBgUrl || content.logoUrl} 
+               onImageChange={(val) => { updateContent({ logoLightBgUrl: val }); triggerSave(); }} 
+            />
+
+            <hr className="my-6"/>
+
             <ImageUpload 
                label="Hlavní banner (Hero)" 
                description="Velký obrázek na úvodní stránce."
@@ -224,8 +390,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                currentImage={content.contactImage} 
                onImageChange={(val) => { updateContent({ contactImage: val }); triggerSave(); }} 
             />
-            
-            {saveStatus === 'saved' && <p className="text-green-600 font-bold mt-4 animate-pulse">Uloženo!</p>}
           </div>
         )}
 
@@ -254,21 +418,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                <div className="space-y-4">
                  <div>
                    <label className="block text-sm font-black text-black mb-1 uppercase">Jméno manažera</label>
-                   <input type="text" className="w-full p-2 border rounded text-black" value={content.team.managerName} onChange={(e) => updateTeam({managerName: e.target.value})} />
+                   <input type="text" className="w-full p-2 border rounded text-black" value={content.team.managerName} onChange={(e) => { updateTeam({managerName: e.target.value}); triggerSave(); }} />
                  </div>
                  <div>
                    <label className="block text-sm font-black text-black mb-1 uppercase">Pozice</label>
-                   <input type="text" className="w-full p-2 border rounded text-black" value={content.team.managerRole} onChange={(e) => updateTeam({managerRole: e.target.value})} />
+                   <input type="text" className="w-full p-2 border rounded text-black" value={content.team.managerRole} onChange={(e) => { updateTeam({managerRole: e.target.value}); triggerSave(); }} />
                  </div>
                </div>
             </div>
 
             <div className="mt-4">
                 <label className="block text-sm font-black text-black mb-1 uppercase">Citát manažera</label>
-                <textarea className="w-full p-2 border rounded text-black" rows={3} value={content.team.managerQuote} onChange={(e) => updateTeam({managerQuote: e.target.value})} />
+                <textarea className="w-full p-2 border rounded text-black" rows={3} value={content.team.managerQuote} onChange={(e) => { updateTeam({managerQuote: e.target.value}); triggerSave(); }} />
             </div>
-
-            {saveStatus === 'saved' && <p className="text-green-600 font-bold mt-4 animate-pulse">Uloženo!</p>}
+             <div className="mt-4">
+                <label className="block text-sm font-black text-black mb-1 uppercase">Motto týmu</label>
+                <input className="w-full p-2 border rounded text-black" value={content.team.teamMotto} onChange={(e) => { updateTeam({teamMotto: e.target.value}); triggerSave(); }} />
+            </div>
           </div>
         )}
 
@@ -288,16 +454,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                    <div className="flex-1 w-full space-y-4">
                       <div>
                         <label className="block text-xs font-black text-black mb-1 uppercase">Název lokality</label>
-                        <input type="text" className="w-full p-2 border rounded text-black font-bold" value={loc.title} onChange={(e) => updateLocation(loc.id, {title: e.target.value})} />
+                        <input type="text" className="w-full p-2 border rounded text-black font-bold" value={loc.title} onChange={(e) => { updateLocation(loc.id, {title: e.target.value}); triggerSave(); }} />
                       </div>
                       <div>
                         <label className="block text-xs font-black text-black mb-1 uppercase">Popis</label>
-                        <textarea className="w-full p-2 border rounded text-black text-sm" rows={3} value={loc.description} onChange={(e) => updateLocation(loc.id, {description: e.target.value})} />
+                        <textarea className="w-full p-2 border rounded text-black text-sm" rows={3} value={loc.description} onChange={(e) => { updateLocation(loc.id, {description: e.target.value}); triggerSave(); }} />
                       </div>
                    </div>
                 </div>
              ))}
-             {saveStatus === 'saved' && <p className="text-green-600 font-bold mt-4 animate-pulse">Uloženo!</p>}
           </div>
         )}
 
@@ -330,7 +495,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                        </button>
                        <button 
                         onClick={() => {
-                          if(window.confirm('Opravdu chcete smazat tento projekt?')) removeProject(project.id);
+                          if(window.confirm('Opravdu chcete smazat tento projekt?')) {
+                             removeProject(project.id);
+                             triggerSave();
+                          }
                         }}
                         className="p-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
                         title="Smazat"
@@ -374,7 +542,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 </div>
                 
                 <div>
-                  <label className="block text-xs font-black uppercase text-black mb-2">Fotografie (Max 10MB/soubor)</label>
+                  <label className="block text-xs font-black uppercase text-black mb-2">Fotografie</label>
                   
                   {/* Image List */}
                   {projectForm.imageUrls && projectForm.imageUrls.length > 0 && (
@@ -440,6 +608,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           </div>
         )}
 
+      </div>
+
+      {/* FIXED BOTTOM SAVE BAR */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-200 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] flex justify-between items-center z-40">
+        <div className="flex items-center gap-2">
+           {saveStatus === 'saved' && (
+             <div className="flex items-center gap-2 text-green-600 bg-green-50 px-3 py-1 rounded-full text-sm font-bold animate-pulse">
+               <Check size={16} /> Změny byly úspěšně uloženy
+             </div>
+           )}
+        </div>
+        <button 
+           onClick={triggerSave}
+           className="px-8 py-3 bg-primary text-white font-bold rounded-xl shadow-lg hover:bg-primary-dark transition-all flex items-center gap-2"
+        >
+           <Save size={20} />
+           Uložit změny
+        </button>
       </div>
     </div>
   );
