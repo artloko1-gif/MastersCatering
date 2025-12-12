@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useContent } from '../../contexts/ContentContext';
-import { LogOut, Image as ImageIcon, Briefcase, Plus, Trash2, Save, X, Upload, Pencil, Users, MapPin, AlignLeft, MessageSquare, Check, Calendar, Mail, Download } from 'lucide-react';
+import { LogOut, Image as ImageIcon, Briefcase, Plus, Trash2, Save, X, Upload, Pencil, Users, MapPin, AlignLeft, MessageSquare, Check, Calendar, Mail, Download, FileCode } from 'lucide-react';
 import { PortfolioItem, LocationItem } from '../../types';
 
 interface AdminDashboardProps {
@@ -99,7 +99,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const { content, updateContent, updateTeam, updateLocation, addProject, updateProject, removeProject, removeInquiry } = useContent();
   const [activeTab, setActiveTab] = useState<'images' | 'texts' | 'team' | 'locations' | 'projects' | 'inquiries'>('inquiries');
   
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saved'>('idle');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'saving_file'>('idle');
 
   // New/Edit Project State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -120,29 +120,60 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     setTimeout(() => setSaveStatus('idle'), 2000);
   };
 
-  // --- Export Functionality ---
-  const handleExportForWeb = () => {
-    // 1. Create the content of the file
-    const fileContent = `import { SiteContent } from '../types';
+  const getFileContent = () => {
+    return `import { SiteContent } from '../types';
 
 export const defaultContent: SiteContent = ${JSON.stringify(content, null, 2)};`;
+  };
 
-    // 2. Create a Blob
+  // --- Export Functionality (Fallback) ---
+  const handleExportForWeb = () => {
+    const fileContent = getFileContent();
     const blob = new Blob([fileContent], { type: 'text/plain' });
-
-    // 3. Create a download link
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
     link.download = 'defaultContent.ts';
-    
-    // 4. Trigger download
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+    alert("Soubor 'defaultContent.ts' byl stažen. Přesuňte ho do složky 'data/'.");
+  };
 
-    alert("Soubor 'defaultContent.ts' byl stažen.\n\nPro trvalé uložení změn na web (pro všechny uživatele):\n1. Vezměte tento stažený soubor.\n2. Nahrajte ho do složky 'data/' ve zdrojovém kódu aplikace (přepište původní soubor).");
+  // --- Direct File Save (File System Access API) ---
+  const handleDirectFileSave = async () => {
+    if (!('showSaveFilePicker' in window)) {
+      alert("Váš prohlížeč nepodporuje přímé ukládání. Použijte prosím tlačítko Stáhnout.");
+      handleExportForWeb();
+      return;
+    }
+
+    try {
+      setSaveStatus('saving_file');
+      
+      // @ts-ignore - Types for File System Access API might be missing in some setups
+      const handle = await window.showSaveFilePicker({
+        suggestedName: 'defaultContent.ts',
+        types: [{
+          description: 'TypeScript File',
+          accept: { 'text/typescript': ['.ts'], 'text/plain': ['.ts'] },
+        }],
+      });
+
+      const writable = await handle.createWritable();
+      await writable.write(getFileContent());
+      await writable.close();
+
+      alert("ÚSPĚCH! Soubor byl přepsán.\n\nNyní stačí, aby se aplikace znovu načetla (pokud běžíte lokálně, stiskněte F5).");
+      setSaveStatus('idle');
+    } catch (err: any) {
+      console.error(err);
+      setSaveStatus('idle');
+      if (err.name !== 'AbortError') {
+        alert("Chyba při ukládání souboru. Zkuste to znovu nebo použijte stažení.");
+      }
+    }
   };
 
   const openAddProject = () => {
@@ -321,8 +352,6 @@ export const defaultContent: SiteContent = ${JSON.stringify(content, null, 2)};`
           </div>
         )}
 
-        {/* ... (Other tabs kept identical, skipping for brevity but assuming they are here in the final file) ... */}
-        {/* Note: In the real update I will include the full content to ensure no code loss, but for XML display I will focus on the structure. */}
         {/* ================== TEXTS TAB ================== */}
         {activeTab === 'texts' && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 max-w-3xl">
@@ -646,20 +675,36 @@ export const defaultContent: SiteContent = ${JSON.stringify(content, null, 2)};`
            )}
         </div>
         <div className="flex gap-4">
+           {/* Primary Permanent Save Button */}
+           <button 
+             onClick={handleDirectFileSave}
+             disabled={saveStatus === 'saving_file'}
+             className={`px-6 py-3 font-bold rounded-xl shadow-lg transition-all flex items-center gap-2 border ${saveStatus === 'saving_file' ? 'bg-slate-100 text-slate-400' : 'bg-slate-900 text-white hover:bg-slate-800 border-slate-900'}`}
+             title="Přímo přepsat soubor defaultContent.ts na disku (vyžaduje podporovaný prohlížeč)"
+           >
+             <FileCode size={20} />
+             {saveStatus === 'saving_file' ? 'Ukládám...' : 'Přepsat soubor v kódu'}
+           </button>
+
+           {/* Fallback Download Button */}
            <button 
              onClick={handleExportForWeb}
-             className="px-6 py-3 bg-slate-800 text-white font-bold rounded-xl shadow-lg hover:bg-slate-700 transition-all flex items-center gap-2 border border-slate-700"
-             title="Stáhnout data pro nahrání do zdrojového kódu"
+             className="px-4 py-3 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all flex items-center gap-2"
+             title="Stáhnout jako soubor (pokud přímý zápis nefunguje)"
            >
              <Download size={20} />
-             Uložit data pro web (Export)
+             <span className="hidden sm:inline">Stáhnout</span>
            </button>
+
+           <div className="h-10 w-px bg-slate-200 mx-2"></div>
+
+           {/* Temporary Browser Save */}
            <button 
              onClick={triggerSave}
-             className="px-8 py-3 bg-primary text-white font-bold rounded-xl shadow-lg hover:bg-primary-dark transition-all flex items-center gap-2"
+             className="px-6 py-3 bg-primary text-white font-bold rounded-xl shadow-lg hover:bg-primary-dark transition-all flex items-center gap-2"
            >
              <Save size={20} />
-             Uložit změny
+             <span className="hidden sm:inline">Uložit dočasně</span>
            </button>
         </div>
       </div>
