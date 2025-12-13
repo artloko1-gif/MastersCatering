@@ -66,20 +66,49 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }));
   };
 
-  const addInquiry = (inquiry: Inquiry) => {
+  // IMMEDIATE SAVE for Inquiries (from Public Site)
+  const addInquiry = async (inquiry: Inquiry) => {
+    const newInquiries = [inquiry, ...(content.inquiries || [])];
+    
+    // Update local state
     setContent(prev => ({
       ...prev,
-      inquiries: [inquiry, ...(prev.inquiries || [])]
+      inquiries: newInquiries
     }));
-    // Note: We might want to auto-save inquiries to DB even if other content isn't saved, 
-    // but for simplicity we keep state separate. In a real app, inquiries would be a separate collection.
+
+    // Save to DB immediately
+    if (isInitialized) {
+      await saveContentToDB({ ...content, inquiries: newInquiries });
+    }
   };
 
-  const removeInquiry = (id: string) => {
+  // IMMEDIATE SAVE for Inquiry Status (from Admin)
+  const updateInquiry = async (id: string, status: 'new' | 'solved' | 'irrelevant') => {
+    const updatedInquiries = (content.inquiries || []).map(inq => 
+      inq.id === id ? { ...inq, status } : inq
+    );
+
     setContent(prev => ({
       ...prev,
-      inquiries: (prev.inquiries || []).filter(i => i.id !== id)
+      inquiries: updatedInquiries
     }));
+
+    if (isInitialized) {
+      await saveContentToDB({ ...content, inquiries: updatedInquiries });
+    }
+  };
+
+  const removeInquiry = async (id: string) => {
+    const remainingInquiries = (content.inquiries || []).filter(i => i.id !== id);
+    
+    setContent(prev => ({
+      ...prev,
+      inquiries: remainingInquiries
+    }));
+
+    if (isInitialized) {
+      await saveContentToDB({ ...content, inquiries: remainingInquiries });
+    }
   };
 
   const saveToCloud = async () => {
@@ -107,6 +136,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
       updateProject,
       removeProject,
       addInquiry,
+      updateInquiry,
       removeInquiry,
       saveToCloud
     }}>

@@ -11,10 +11,29 @@ import { Contact } from './components/Contact';
 import { Footer } from './components/Footer';
 import { Login } from './components/Admin/Login';
 import { AdminDashboard } from './components/Admin/AdminDashboard';
-import { ContentProvider } from './contexts/ContentContext';
+import { ContentProvider, useContent } from './contexts/ContentContext';
 import { ArrowUp } from 'lucide-react';
 
-const PublicSite: React.FC<{ onAdminClick: () => void }> = ({ onAdminClick }) => {
+// Helper component to update favicon
+const FaviconUpdater: React.FC = () => {
+  const { content } = useContent();
+
+  useEffect(() => {
+    if (content.faviconUrl) {
+      let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.getElementsByTagName('head')[0].appendChild(link);
+      }
+      link.href = content.faviconUrl;
+    }
+  }, [content.faviconUrl]);
+
+  return null;
+};
+
+const PublicSite: React.FC = () => {
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   useEffect(() => {
@@ -65,7 +84,7 @@ const PublicSite: React.FC<{ onAdminClick: () => void }> = ({ onAdminClick }) =>
         </div>
       </main>
 
-      <Footer onAdminClick={onAdminClick} />
+      <Footer />
 
       <button
         onClick={scrollToTop}
@@ -83,10 +102,30 @@ const PublicSite: React.FC<{ onAdminClick: () => void }> = ({ onAdminClick }) =>
 const App: React.FC = () => {
   const [view, setView] = useState<'public' | 'login' | 'admin'>('public');
 
+  useEffect(() => {
+    // Check for URL parameter to switch to admin/login mode directly
+    // This allows opening admin in a new tab via ?mode=admin
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('mode') === 'admin') {
+      setView('login');
+    }
+  }, []);
+
+  const handleLogout = () => {
+    // If we were in "admin mode" via URL, clean the URL on logout
+    if (window.location.search.includes('mode=admin')) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('mode');
+        window.history.replaceState({}, '', url);
+    }
+    setView('public');
+  };
+
   return (
     <ContentProvider>
+      <FaviconUpdater />
       {view === 'public' && (
-        <PublicSite onAdminClick={() => setView('login')} />
+        <PublicSite />
       )}
       
       {view === 'login' && (
@@ -97,7 +136,7 @@ const App: React.FC = () => {
       )}
 
       {view === 'admin' && (
-        <AdminDashboard onLogout={() => setView('public')} />
+        <AdminDashboard onLogout={handleLogout} />
       )}
     </ContentProvider>
   );

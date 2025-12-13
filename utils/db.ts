@@ -6,6 +6,10 @@ const COLLECTION_NAME = 'settings';
 const DOC_ID = 'site_content';
 
 export const saveContentToDB = async (content: SiteContent): Promise<void> => {
+  if (!db) {
+    console.warn("Firestore is not initialized. Cannot save content.");
+    throw new Error("Databáze není dostupná.");
+  }
   try {
     const docRef = doc(db, COLLECTION_NAME, DOC_ID);
     await setDoc(docRef, content);
@@ -16,6 +20,10 @@ export const saveContentToDB = async (content: SiteContent): Promise<void> => {
 };
 
 export const getContentFromDB = async (): Promise<SiteContent | null> => {
+  if (!db) {
+     console.warn("Firestore is not initialized. Returning null to use default content.");
+     return null;
+  }
   try {
     const docRef = doc(db, COLLECTION_NAME, DOC_ID);
     const docSnap = await getDoc(docRef);

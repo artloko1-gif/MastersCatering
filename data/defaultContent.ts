@@ -1,6 +1,7 @@
 import { SiteContent } from '../types';
 
 export const defaultContent: SiteContent = {
+  faviconUrl: "",
   logoDarkBgUrl: "",
   logoLightBgUrl: "",
   logoUrl: "",

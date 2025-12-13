@@ -47,6 +47,7 @@ export interface Inquiry {
   dateLocation: string;
   email: string;
   requirements: string;
+  status: 'new' | 'solved' | 'irrelevant';
 }
 
 export interface TextContent {
@@ -58,6 +59,7 @@ export interface TextContent {
 }
 
 export interface SiteContent {
+  faviconUrl?: string;
   logoUrl: string;
   logoDarkBgUrl?: string;
   logoLightBgUrl?: string;
@@ -82,7 +84,8 @@ export interface ContentContextType {
   updateProject: (id: string, project: Partial<PortfolioItem>) => void;
   removeProject: (id: string) => void;
   // Inquiry management
-  addInquiry: (inquiry: Inquiry) => void;
+  addInquiry: (inquiry: Inquiry) => Promise<void>;
+  updateInquiry: (id: string, status: 'new' | 'solved' | 'irrelevant') => void;
   removeInquiry: (id: string) => void;
   // Cloud Ops
   saveToCloud: () => Promise<void>;

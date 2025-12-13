@@ -1,4 +1,4 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -10,6 +10,17 @@ const firebaseConfig = {
   appId: "1:914015412240:web:38c304e7e1772af8c7ea95"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+// Initialize Firebase only if it hasn't been initialized already to prevent "App already exists" errors
+let app;
+try {
+    if (getApps().length === 0) {
+        app = initializeApp(firebaseConfig);
+    } else {
+        app = getApp();
+    }
+} catch (e) {
+    console.error("Firebase initialization error:", e);
+}
+
+// Export db safely - if app failed to init, db will be null, and utils/db.ts handles that
+export const db = app ? getFirestore(app) : null;

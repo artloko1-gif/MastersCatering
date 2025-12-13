@@ -46,9 +46,12 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
           )}
           
           <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">Email</label>
+            <label className="block text-sm font-bold text-slate-700 mb-2" htmlFor="email">Email</label>
             <input
+              id="email"
+              name="email"
               type="email"
+              autoComplete="username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-black"
@@ -57,9 +60,12 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onBack }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">Heslo</label>
+            <label className="block text-sm font-bold text-slate-700 mb-2" htmlFor="password">Heslo</label>
             <input
+              id="password"
+              name="password"
               type="password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-black"

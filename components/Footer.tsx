@@ -2,11 +2,7 @@ import React from 'react';
 import { UtensilsCrossed, Facebook, Instagram, Linkedin, Lock } from 'lucide-react';
 import { useContent } from '../contexts/ContentContext';
 
-interface FooterProps {
-  onAdminClick?: () => void;
-}
-
-export const Footer: React.FC<FooterProps> = ({ onAdminClick }) => {
+export const Footer: React.FC = () => {
   const { content } = useContent();
 
   return (
@@ -68,14 +64,14 @@ export const Footer: React.FC<FooterProps> = ({ onAdminClick }) => {
           <p>© 2025 Master's Catering. Všechna práva vyhrazena.</p>
           <div className="flex items-center gap-4 mt-2 md:mt-0">
              <p>Design inspirován Master's Catering brandem.</p>
-             {onAdminClick && (
-               <button 
-                onClick={onAdminClick}
-                className="opacity-30 hover:opacity-100 transition-opacity flex items-center gap-1 text-xs"
-               >
-                 <Lock size={10} /> Administrace
-               </button>
-             )}
+             <a 
+              href="?mode=admin"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="opacity-30 hover:opacity-100 transition-opacity flex items-center gap-1 text-xs"
+             >
+               <Lock size={10} /> Administrace
+             </a>
           </div>
         </div>
       </div>

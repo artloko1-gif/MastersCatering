@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useContent } from '../../contexts/ContentContext';
-import { LogOut, Image as ImageIcon, Briefcase, Plus, Trash2, Save, X, Upload, Pencil, Users, MapPin, AlignLeft, MessageSquare, Check, Calendar, Mail, CloudUpload, AlertCircle } from 'lucide-react';
+import { LogOut, Image as ImageIcon, Briefcase, Plus, Trash2, Save, X, Upload, Pencil, Users, MapPin, AlignLeft, MessageSquare, Check, Calendar, Mail, CloudUpload, AlertCircle, Ban, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { PortfolioItem, LocationItem } from '../../types';
 
 interface AdminDashboardProps {
@@ -8,7 +8,9 @@ interface AdminDashboardProps {
 }
 
 // --- Image Compression Utility ---
-const compressImage = (file: File, maxWidth = 1200, quality = 0.7): Promise<string> => {
+// Optimized for Firestore Document Limits (1MB limit per doc)
+// Reduced max width and quality to ensure multiple images fit
+const compressImage = (file: File, maxWidth = 800, quality = 0.6): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -57,7 +59,8 @@ const ImageUpload: React.FC<{
     const file = e.target.files?.[0];
     if (file) {
       try {
-        const compressedBase64 = await compressImage(file, isAvatar ? 400 : 1200);
+        // Use smaller size for avatars/favicons
+        const compressedBase64 = await compressImage(file, isAvatar ? 300 : 1000, 0.7);
         onImageChange(compressedBase64);
       } catch (error) {
         console.error("Compression failed", error);
@@ -95,7 +98,7 @@ const ImageUpload: React.FC<{
 };
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
-  const { content, updateContent, updateTeam, updateLocation, addProject, updateProject, removeProject, removeInquiry, saveToCloud } = useContent();
+  const { content, updateContent, updateTeam, updateLocation, addProject, updateProject, removeProject, removeInquiry, updateInquiry, saveToCloud } = useContent();
   const [activeTab, setActiveTab] = useState<'images' | 'texts' | 'team' | 'locations' | 'projects' | 'inquiries'>('inquiries');
   
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -123,6 +126,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     } catch (error) {
       console.error(error);
       setSaveStatus('error');
+      alert("Chyba při ukládání: Pravděpodobně bylo nahráno příliš mnoho velkých obrázků. Zkuste prosím některé smazat nebo zmenšit.");
     }
   };
 
@@ -175,7 +179,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
       for (const file of fileArray) {
         try {
-          const compressed = await compressImage(file, 1200);
+          // Stronger compression for gallery images to fit multiple into Firestore
+          const compressed = await compressImage(file, 800, 0.6);
           newImages.push(compressed);
         } catch (err) {
           console.error("Skipped image due to error", err);
@@ -188,6 +193,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           imageUrls: [...(prev.imageUrls || []), ...newImages]
       }));
     }
+  };
+
+  const moveProjectImage = (index: number, direction: 'left' | 'right') => {
+    if (!projectForm.imageUrls) return;
+    
+    const newImages = [...projectForm.imageUrls];
+    const targetIndex = direction === 'left' ? index - 1 : index + 1;
+
+    // Bounds check
+    if (targetIndex < 0 || targetIndex >= newImages.length) return;
+
+    // Swap
+    [newImages[index], newImages[targetIndex]] = [newImages[targetIndex], newImages[index]];
+
+    setProjectForm(prev => ({
+      ...prev,
+      imageUrls: newImages
+    }));
+  };
+
+  const removeProjectImage = (index: number) => {
+    if (!projectForm.imageUrls) return;
+    const newImages = projectForm.imageUrls.filter((_, i) => i !== index);
+    setProjectForm(prev => ({
+      ...prev,
+      imageUrls: newImages
+    }));
   };
 
   // Function to format date safely
@@ -223,9 +255,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
         <div className="flex flex-wrap gap-4 mb-8">
            <button onClick={() => setActiveTab('inquiries')} className={`flex items-center gap-2 px-6 py-3 rounded-lg font-bold transition-all ${activeTab === 'inquiries' ? 'bg-primary text-white shadow-lg' : 'bg-white text-slate-600 hover:bg-slate-100'}`}>
             <MessageSquare size={20} /> Poptávky
-            {content.inquiries && content.inquiries.length > 0 && (
+            {content.inquiries && content.inquiries.filter(i => !i.status || i.status === 'new').length > 0 && (
               <span className="bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                {content.inquiries.length}
+                {content.inquiries.filter(i => !i.status || i.status === 'new').length}
               </span>
             )}
           </button>
@@ -262,16 +294,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
              ) : (
                <div className="space-y-4">
                  {content.inquiries.map((inq) => (
-                   <div key={inq.id} className="bg-slate-50 border border-slate-200 rounded-xl p-6 relative hover:shadow-md transition-shadow">
-                     <div className="grid md:grid-cols-2 gap-4 mb-4">
+                   <div key={inq.id} className={`bg-slate-50 border rounded-xl p-6 relative hover:shadow-md transition-shadow ${
+                      inq.status === 'solved' ? 'border-green-200 bg-green-50/50' : 
+                      inq.status === 'irrelevant' ? 'border-slate-200 bg-slate-100 opacity-60' : 
+                      'border-primary/20 bg-white'
+                   }`}>
+                     {/* Status Badge */}
+                     <div className="absolute top-4 right-4 flex gap-2">
+                        {(!inq.status || inq.status === 'new') && <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-full">Nová</span>}
+                        {inq.status === 'solved' && <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">Vyřízeno</span>}
+                        {inq.status === 'irrelevant' && <span className="px-2 py-1 bg-slate-200 text-slate-600 text-xs font-bold rounded-full">Nerelevantní</span>}
+                     </div>
+
+                     <div className="grid md:grid-cols-2 gap-4 mb-4 mt-2">
                        <div>
                          <div className="flex items-center gap-2 text-primary font-bold mb-1">
                            <Calendar size={16} /> {formatDate(inq.createdAt)}
                          </div>
                          <h4 className="text-lg font-bold text-slate-900">{inq.eventType} ({inq.guests} hostů)</h4>
                        </div>
-                       <div className="md:text-right">
-                          <div className="flex items-center gap-2 justify-start md:justify-end text-slate-700">
+                       <div className="">
+                          <div className="flex items-center gap-2 justify-start text-slate-700">
                              <Mail size={16} /> <a href={`mailto:${inq.email}`} className="hover:underline font-medium">{inq.email}</a>
                           </div>
                           <div className="text-sm text-slate-500 mt-1">
@@ -284,14 +327,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                        <p className="whitespace-pre-wrap">{inq.requirements}</p>
                      </div>
 
-                     <div className="flex justify-end">
+                     <div className="flex justify-between items-center border-t border-slate-200 pt-4 mt-4">
+                       <div className="flex gap-2">
+                          <button 
+                            onClick={() => updateInquiry(inq.id, 'solved')}
+                            disabled={inq.status === 'solved'}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold transition-all ${inq.status === 'solved' ? 'bg-green-100 text-green-700 cursor-default' : 'bg-white border border-slate-200 hover:bg-green-50 hover:text-green-600 hover:border-green-200'}`}
+                          >
+                             <CheckCircle size={16} /> Vyřízeno
+                          </button>
+                          
+                          <button 
+                            onClick={() => updateInquiry(inq.id, 'irrelevant')}
+                            disabled={inq.status === 'irrelevant'}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold transition-all ${inq.status === 'irrelevant' ? 'bg-slate-200 text-slate-600 cursor-default' : 'bg-white border border-slate-200 hover:bg-slate-100 hover:text-slate-600'}`}
+                          >
+                             <Ban size={16} /> Nerelevantní
+                          </button>
+                       </div>
+
                        <button 
                          onClick={() => {
-                           if(confirm('Opravdu chcete tuto poptávku smazat?')) removeInquiry(inq.id);
+                           if(confirm('Opravdu chcete tuto poptávku úplně odstranit z databáze?')) removeInquiry(inq.id);
                          }}
-                         className="flex items-center gap-2 text-red-500 hover:text-red-700 text-sm font-medium px-3 py-2 rounded-lg hover:bg-red-50 transition-colors"
+                         className="flex items-center gap-2 text-red-400 hover:text-red-600 text-sm px-2 py-2 rounded hover:bg-red-50 transition-colors"
+                         title="Smazat navždy"
                        >
-                         <Trash2 size={16} /> Smazat poptávku
+                         <Trash2 size={16} />
                        </button>
                      </div>
                    </div>
@@ -363,6 +425,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 max-w-3xl">
             <h3 className="font-serif text-2xl font-bold text-slate-800 mb-6">Základní fotografie webu</h3>
             
+            <ImageUpload 
+               label="Favicon (Ikonka webu)" 
+               description="Malá ikonka, která se zobrazuje v záložce prohlížeče."
+               isAvatar
+               currentImage={content.faviconUrl || ''} 
+               onImageChange={(val) => { updateContent({ faviconUrl: val }); }} 
+            />
+
+            <hr className="my-6"/>
+
             <ImageUpload 
                label="Logo (pro tmavé pozadí)" 
                description="Zobrazí se nahoře na banneru. Ideálně bílé/světlé PNG."
@@ -546,23 +618,56 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 
                 <div>
                   <label className="block text-xs font-black uppercase text-black mb-2">Fotografie</label>
+                  <p className="text-xs text-slate-500 mb-3">
+                    První fotografie zleva bude použita jako hlavní náhled (ta "právní"). Použijte šipky pro změnu pořadí.
+                  </p>
                   
                   {/* Image List */}
                   {projectForm.imageUrls && projectForm.imageUrls.length > 0 && (
                      <div className="flex gap-2 overflow-x-auto pb-4 mb-4">
                         {projectForm.imageUrls.map((img, idx) => (
-                           <div key={idx} className="relative w-24 h-24 shrink-0 rounded-lg overflow-hidden group">
+                           <div key={idx} className="relative w-32 h-32 shrink-0 rounded-lg overflow-hidden group border border-slate-200">
                               <img src={img} className="w-full h-full object-cover" />
-                              <button 
-                                 type="button"
-                                 onClick={() => {
-                                    const newImgs = projectForm.imageUrls!.filter((_, i) => i !== idx);
-                                    setProjectForm({...projectForm, imageUrls: newImgs});
-                                 }}
-                                 className="absolute inset-0 bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                 <Trash2 size={16} />
-                              </button>
+                              
+                              {/* Overlay Actions */}
+                              <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="flex gap-2">
+                                  {idx > 0 && (
+                                    <button 
+                                      type="button"
+                                      onClick={() => moveProjectImage(idx, 'left')}
+                                      className="p-1 bg-white text-slate-900 rounded hover:bg-primary hover:text-white"
+                                      title="Posunout doleva (hlavní foto)"
+                                    >
+                                      <ChevronLeft size={16} />
+                                    </button>
+                                  )}
+                                  {idx < (projectForm.imageUrls?.length || 0) - 1 && (
+                                    <button 
+                                      type="button"
+                                      onClick={() => moveProjectImage(idx, 'right')}
+                                      className="p-1 bg-white text-slate-900 rounded hover:bg-primary hover:text-white"
+                                      title="Posunout doprava"
+                                    >
+                                      <ChevronRight size={16} />
+                                    </button>
+                                  )}
+                                </div>
+                                <button 
+                                   type="button"
+                                   onClick={() => removeProjectImage(idx)}
+                                   className="p-1 bg-red-500 text-white rounded hover:bg-red-600 mt-1"
+                                   title="Smazat fotku"
+                                >
+                                   <Trash2 size={16} />
+                                </button>
+                              </div>
+                              
+                              {idx === 0 && (
+                                <div className="absolute bottom-0 left-0 right-0 bg-primary/90 text-white text-[10px] font-bold text-center py-1">
+                                  HLAVNÍ
+                                </div>
+                              )}
                            </div>
                         ))}
                      </div>

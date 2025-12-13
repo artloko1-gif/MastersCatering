@@ -1,19 +1,60 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Phone, Mail, MapPin, Send } from 'lucide-react';
 import { useContent } from '../contexts/ContentContext';
+import emailjs from '@emailjs/browser';
 
 export const Contact: React.FC = () => {
-  const { content } = useContent();
+  const { content, addInquiry } = useContent();
   const [formStatus, setFormStatus] = useState<'idle' | 'sending' | 'success'>('idle');
+  const formRef = useRef<HTMLFormElement>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setFormStatus('sending');
-    // Simulate network request
-    setTimeout(() => {
-      setFormStatus('success');
-    }, 1500);
+
+    if (formRef.current) {
+      // Create FormData object to easily extract values
+      const formData = new FormData(formRef.current);
+
+      emailjs.sendForm(
+        'service_lf1u0vo', // Service ID
+        'template_4z923ne', // Template ID
+        formRef.current,
+        { publicKey: '1q6MCRFxIYFlQli0D' } // Public Key
+      )
+      .then(
+        async () => {
+          // Email sent successfully, now save to DB
+          try {
+             await addInquiry({
+                id: Date.now().toString(),
+                createdAt: new Date().toISOString(),
+                eventType: formData.get('event_type') as string || 'Neurčeno',
+                guests: Number(formData.get('guests')),
+                dateLocation: formData.get('date_location') as string || '',
+                email: formData.get('email') as string || '',
+                requirements: formData.get('message') as string || '',
+                status: 'new'
+             });
+             
+             setFormStatus('success');
+             alert('Zpráva úspěšně odeslána a uložena.');
+             if (formRef.current) formRef.current.reset();
+          } catch (dbError) {
+             console.error("Failed to save inquiry to DB", dbError);
+             // Still show success for user as email went through
+             setFormStatus('success');
+             alert('Zpráva odeslána na email, ale nepodařilo se ji uložit do historie.');
+          }
+        },
+        (error) => {
+          setFormStatus('idle');
+          alert('Odeslání selhalo: ' + error.text);
+          console.error('FAILED...', error.text);
+        }
+      );
+    }
   };
 
   return (
@@ -100,22 +141,23 @@ export const Contact: React.FC = () => {
                  <button onClick={() => setFormStatus('idle')} className="mt-6 text-sm font-bold text-green-700 underline">Poslat další</button>
                </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-2">Typ akce</label>
-                    <select className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-black">
-                      <option>Svatba</option>
-                      <option>Firemní večírek</option>
-                      <option>Oslava</option>
-                      <option>Konference</option>
-                      <option>Jiné</option>
+                    <select name="event_type" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-black">
+                      <option value="Svatba">Svatba</option>
+                      <option value="Firemní večírek">Firemní večírek</option>
+                      <option value="Oslava">Oslava</option>
+                      <option value="Konference">Konference</option>
+                      <option value="Jiné">Jiné</option>
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-2">Počet hostů</label>
                     <input 
                       type="number" 
+                      name="guests"
                       placeholder="Např. 50" 
                       className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-black"
                     />
@@ -126,6 +168,7 @@ export const Contact: React.FC = () => {
                   <label className="block text-sm font-bold text-slate-700 mb-2">Datum a místo</label>
                   <input 
                     type="text" 
+                    name="date_location"
                     placeholder="Kdy a kde se událost koná?" 
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-black"
                   />
@@ -135,6 +178,7 @@ export const Contact: React.FC = () => {
                   <label className="block text-sm font-bold text-slate-700 mb-2">Kontaktní email</label>
                   <input 
                     type="email" 
+                    name="email"
                     required
                     placeholder="vas@email.cz" 
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-black"
@@ -145,6 +189,7 @@ export const Contact: React.FC = () => {
                   <label className="block text-sm font-bold text-slate-700 mb-2">Speciální požadavky</label>
                   <textarea 
                     rows={4}
+                    name="message"
                     placeholder="Diety, preferované menu, výzdoba..." 
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all resize-none text-black"
                   ></textarea>
@@ -156,7 +201,10 @@ export const Contact: React.FC = () => {
                   className="w-full py-4 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/30 hover:bg-primary-dark transition-all duration-300 transform hover:-translate-y-1 disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center gap-2"
                 >
                   {formStatus === 'sending' ? (
-                    <>Odesílám...</>
+                    <>
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      Odesílám...
+                    </>
                   ) : (
                     <>Odeslat poptávku</>
                   )}
