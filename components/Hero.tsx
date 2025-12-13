@@ -1,21 +1,48 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import { useContent } from '../contexts/ContentContext';
 
 export const Hero: React.FC = () => {
   const { content } = useContent();
+  
+  // Use heroImages array, fallback to legacy heroImage if array is somehow empty
+  const images = content.heroImages && content.heroImages.length > 0 
+    ? content.heroImages 
+    : [content.heroImage];
+
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  useEffect(() => {
+    if (images.length <= 1) return;
+
+    const timer = setInterval(() => {
+      setCurrentImageIndex((prev) => (prev + 1) % images.length);
+    }, 6000); // Change image every 6 seconds
+
+    return () => clearInterval(timer);
+  }, [images.length]);
 
   return (
-    <div className="relative h-screen min-h-[600px] flex items-center justify-center overflow-hidden">
-      {/* Background Image with Overlay */}
+    <div className="relative h-screen min-h-[600px] flex items-center justify-center overflow-hidden bg-slate-900">
+      {/* Background Slideshow */}
       <div className="absolute inset-0 z-0">
-        <img
-          src={content.heroImage}
-          alt="Elegant catering setup"
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-slate-900/90" />
+        {images.map((img, index) => (
+          <div
+            key={img} // Using URL as key is fine here since images are unique in the list usually
+            className={`absolute inset-0 transition-opacity duration-[2000ms] ease-in-out ${
+              index === currentImageIndex ? 'opacity-100' : 'opacity-0'
+            }`}
+          >
+            <img
+              src={img}
+              alt="Hero background"
+              className="w-full h-full object-cover"
+            />
+            {/* Overlay built into each image container to ensure consistency */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-slate-900/90" />
+          </div>
+        ))}
       </div>
 
       {/* Content */}
@@ -25,16 +52,18 @@ export const Hero: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: "easeOut" }}
         >
-          <span className="inline-block py-1 px-3 border border-white/30 rounded-full text-sm font-medium tracking-widest uppercase mb-6 bg-white/10 backdrop-blur-sm">
-            Exkluzivní Cateringové Služby
-          </span>
-          <h1 className="font-serif text-5xl md:text-7xl font-bold leading-tight mb-6">
-            Váš partner pro <br/>
-            <span className="text-primary-light">nezapomenutelné</span> <br/>
-            gastronomické zážitky
+          {content.textContent?.heroTagline && (
+            <span className="inline-block py-1 px-3 border border-white/30 rounded-full text-sm font-medium tracking-widest uppercase mb-6 bg-white/10 backdrop-blur-sm">
+              {content.textContent.heroTagline}
+            </span>
+          )}
+          
+          <h1 className="font-serif text-5xl md:text-7xl font-bold leading-tight mb-6 whitespace-pre-wrap">
+             {content.textContent?.heroTitle || "Váš partner pro\nnezapomenutelné\ngastronomické zážitky"}
           </h1>
+          
           <p className="max-w-3xl mx-auto text-lg md:text-xl text-slate-200 mb-10 font-light leading-relaxed">
-            Dovolte nám přetvořit vaše představy v kulinářskou realitu. V Master's Catering se specializujeme na vytváření jedinečných gastronomických zážitků, které dokonale doplní jakoukoli událost.
+            {content.textContent?.heroSubtitle || "Dovolte nám přetvořit vaše představy v kulinářskou realitu. V Master's Catering se specializujeme na vytváření jedinečných gastronomických zážitků."}
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

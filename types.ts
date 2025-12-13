@@ -27,7 +27,7 @@ export interface LocationItem {
   id: string;
   title: string;
   description: string;
-  imageUrl: string;
+  imageUrls: string[]; // Changed from imageUrl to support gallery
 }
 
 export interface TeamContent {
@@ -50,6 +50,12 @@ export interface Inquiry {
   status: 'new' | 'solved' | 'irrelevant';
 }
 
+export interface ClientItem {
+  id: string;
+  name: string;
+  logoUrl?: string;
+}
+
 export interface TextContent {
   heroTitle?: string;
   heroSubtitle?: string;
@@ -63,12 +69,14 @@ export interface SiteContent {
   logoUrl: string;
   logoDarkBgUrl?: string;
   logoLightBgUrl?: string;
-  heroImage: string;
+  heroImage: string; // Deprecated, kept for backward compatibility type safety
+  heroImages: string[]; // New: Array of images for slideshow
   aboutImage: string;
   contactImage: string;
   team: TeamContent;
   locations: LocationItem[];
   projects: PortfolioItem[];
+  clients: ClientItem[];
   textContent?: TextContent;
   inquiries?: Inquiry[];
 }
@@ -83,6 +91,11 @@ export interface ContentContextType {
   addProject: (project: PortfolioItem) => void;
   updateProject: (id: string, project: Partial<PortfolioItem>) => void;
   removeProject: (id: string) => void;
+  // Client management
+  addClient: (client: ClientItem) => void;
+  updateClient: (id: string, data: Partial<ClientItem>) => void;
+  removeClient: (id: string) => void;
+  reorderClients: (newOrder: ClientItem[]) => void;
   // Inquiry management
   addInquiry: (inquiry: Inquiry) => Promise<void>;
   updateInquiry: (id: string, status: 'new' | 'solved' | 'irrelevant') => void;

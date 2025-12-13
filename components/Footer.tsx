@@ -8,7 +8,7 @@ export const Footer: React.FC = () => {
   return (
     <footer className="bg-slate-900 text-slate-400 border-t border-slate-800 pt-16 pb-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid md:grid-cols-4 gap-12 mb-12">
+        <div className="grid md:grid-cols-3 gap-12 mb-12">
           
           <div className="col-span-1 md:col-span-1">
              <div className="flex items-center gap-2 text-white mb-6">
@@ -50,20 +50,25 @@ export const Footer: React.FC = () => {
             </ul>
           </div>
 
-          <div>
-            <h4 className="text-white font-bold uppercase tracking-wider mb-6">Právní informace</h4>
-            <ul className="space-y-3">
-              <li><a href="#" className="hover:text-primary transition-colors">Ochrana osobních údajů</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Obchodní podmínky</a></li>
-            </ul>
-          </div>
-
         </div>
 
-        <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center text-sm">
-          <p>© 2025 Master's Catering. Všechna práva vyhrazena.</p>
+        <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center text-sm gap-4">
+          <div className="flex flex-col md:flex-row items-center gap-4 text-center md:text-left">
+            <p>© {new Date().getFullYear()} JLV, a.s., marketing GSA</p>
+            <span className="hidden md:inline text-slate-700">|</span>
+            <a href="https://www.jlv.cz" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
+              Garance kvality: www.jlv.cz
+            </a>
+          </div>
+          
           <div className="flex items-center gap-4 mt-2 md:mt-0">
-             <p>Design inspirován Master's Catering brandem.</p>
+             {/* Dynamic Logo in Footer instead of Text */}
+             {content.logoUrl ? (
+                <img src={content.logoUrl} alt="Logo" className="h-6 w-auto object-contain brightness-0 invert opacity-50 hover:opacity-100 transition-opacity" />
+             ) : (
+                <span className="font-serif font-bold text-slate-600">Master's Catering</span>
+             )}
+             
              <a 
               href="?mode=admin"
               target="_blank"

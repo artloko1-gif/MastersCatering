@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: "AIzaSyACq_gD_aXsKMpjhnvfkCrkn1UEUzYJmEk",
@@ -22,5 +23,7 @@ try {
     console.error("Firebase initialization error:", e);
 }
 
-// Export db safely - if app failed to init, db will be null, and utils/db.ts handles that
+// Export db safely
 export const db = app ? getFirestore(app) : null;
+// Export storage safely
+export const storage = app ? getStorage(app) : null;

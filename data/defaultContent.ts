@@ -6,6 +6,9 @@ export const defaultContent: SiteContent = {
   logoLightBgUrl: "",
   logoUrl: "",
   heroImage: "https://images.unsplash.com/photo-1555244162-803834f70033?q=80&w=2070&auto=format&fit=crop",
+  heroImages: [
+    "https://images.unsplash.com/photo-1555244162-803834f70033?q=80&w=2070&auto=format&fit=crop"
+  ],
   aboutImage: "https://images.unsplash.com/photo-1560624052-449f5ddf0c31?q=80&w=1635&auto=format&fit=crop",
   contactImage: "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?q=80&w=2664&auto=format&fit=crop",
   textContent: {
@@ -28,19 +31,19 @@ export const defaultContent: SiteContent = {
       id: '1',
       title: "Rudolfova slévárna",
       description: "Historické prostory Pražského hradu, ideální pro galavečeře a prestižní firemní akce. Jedinečná atmosféra v srdci Prahy.",
-      imageUrl: "https://images.unsplash.com/photo-1590623253754-52d37c68b75c?q=80&w=1974&auto=format&fit=crop"
+      imageUrls: ["https://images.unsplash.com/photo-1590623253754-52d37c68b75c?q=80&w=1974&auto=format&fit=crop"]
     },
     {
       id: '2',
       title: "Sál Sirius",
       description: "Moderní a flexibilní prostory v Pardubicích, vhodné pro konference, plesy a velké oslavy. Nejmodernější technické vybavení.",
-      imageUrl: "https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=2069&auto=format&fit=crop"
+      imageUrls: ["https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=2069&auto=format&fit=crop"]
     },
     {
       id: '3',
       title: "Speciální vlaky",
       description: "Catering v pohybu - nezapomenutelné zážitky na palubě historických i moderních vlaků. Originální řešení pro netradiční události.",
-      imageUrl: "https://images.unsplash.com/photo-1474487548417-781cb71495f3?q=80&w=2184&auto=format&fit=crop"
+      imageUrls: ["https://images.unsplash.com/photo-1474487548417-781cb71495f3?q=80&w=2184&auto=format&fit=crop"]
     }
   ],
   projects: [
@@ -69,6 +72,19 @@ export const defaultContent: SiteContent = {
       ],
       tags: ["Historický vlak", "Zážitková gastronomie"]
     }
+  ],
+  clients: [
+    { id: '1', name: "Dr.Max" },
+    { id: '2', name: "České dráhy" },
+    { id: '3', name: "Cinnabon" },
+    { id: '4', name: "Makro" },
+    { id: '5', name: "PID" },
+    { id: '6', name: "Siemens" },
+    { id: '7', name: "Skanska" },
+    { id: '8', name: "Škoda" },
+    { id: '9', name: "UniCredit Bank" },
+    { id: '10', name: "Metrostav" },
+    { id: '11', name: "Qatar Airways" }
   ],
   inquiries: []
 };

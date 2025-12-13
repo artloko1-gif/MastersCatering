@@ -1,16 +1,27 @@
 import React, { useState } from 'react';
 import { useContent } from '../../contexts/ContentContext';
-import { LogOut, Image as ImageIcon, Briefcase, Plus, Trash2, Save, X, Upload, Pencil, Users, MapPin, AlignLeft, MessageSquare, Check, Calendar, Mail, CloudUpload, AlertCircle, Ban, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
-import { PortfolioItem, LocationItem } from '../../types';
+import { LogOut, Image as ImageIcon, Briefcase, Plus, Trash2, Save, X, Upload, Pencil, Users, MapPin, AlignLeft, MessageSquare, Check, Calendar, Mail, CloudUpload, AlertCircle, Ban, CheckCircle, ChevronLeft, ChevronRight, Building } from 'lucide-react';
+import { PortfolioItem, LocationItem, ClientItem } from '../../types';
+import { uploadFileToStorage } from '../../utils/db';
 
 interface AdminDashboardProps {
   onLogout: () => void;
 }
 
+// --- Helper: Convert DataURI (Base64) to Blob for upload ---
+const dataURItoBlob = (dataURI: string) => {
+  const byteString = atob(dataURI.split(',')[1]);
+  const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+  const ab = new ArrayBuffer(byteString.length);
+  const ia = new Uint8Array(ab);
+  for (let i = 0; i < byteString.length; i++) {
+    ia[i] = byteString.charCodeAt(i);
+  }
+  return new Blob([ab], {type: mimeString});
+};
+
 // --- Image Compression Utility ---
-// Optimized for Firestore Document Limits (1MB limit per doc)
-// Updated to support PNG for transparency (essential for Favicons)
-const compressImage = (file: File, maxWidth = 800, quality = 0.6, format = 'image/jpeg'): Promise<string> => {
+const compressImage = (file: File, maxWidth = 1200, quality = 0.8): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -36,8 +47,8 @@ const compressImage = (file: File, maxWidth = 800, quality = 0.6, format = 'imag
         }
         ctx.drawImage(img, 0, 0, width, height);
         
-        // Convert to specified format (JPEG for photos, PNG for icons/logos with transparency)
-        const compressedDataUrl = canvas.toDataURL(format, quality);
+        // Convert to JPEG
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
         resolve(compressedDataUrl);
       };
       img.onerror = (err) => reject(err);
@@ -46,32 +57,38 @@ const compressImage = (file: File, maxWidth = 800, quality = 0.6, format = 'imag
   });
 };
 
-// Internal component for handling file uploads (Base64 + Compression)
+// Internal component for handling file uploads (Compression -> Upload to Storage -> URL)
 const ImageUpload: React.FC<{ 
   currentImage: string; 
-  onImageChange: (base64: string) => void;
+  onImageChange: (url: string) => void;
   label: string;
   description?: string;
   isAvatar?: boolean;
-  forcePng?: boolean; // New prop to force PNG format
-}> = ({ currentImage, onImageChange, label, description, isAvatar = false, forcePng = false }) => {
+}> = ({ currentImage, onImageChange, label, description, isAvatar = false }) => {
   
+  const [isUploading, setIsUploading] = useState(false);
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setIsUploading(true);
       try {
-        // Use smaller size for avatars/favicons
-        // If forcePng is true, use 'image/png' to preserve transparency
-        const size = isAvatar ? 300 : 1000;
-        const format = forcePng ? 'image/png' : 'image/jpeg';
-        // PNGs usually need higher quality setting to look good, JPEGs can be compressed more
-        const quality = forcePng ? 0.9 : 0.7;
+        // 1. Compress client-side first (good for performance)
+        const compressedBase64 = await compressImage(file, isAvatar ? 300 : 1200, 0.8);
         
-        const compressedBase64 = await compressImage(file, size, quality, format);
-        onImageChange(compressedBase64);
+        // 2. Convert Base64 to Blob
+        const blob = dataURItoBlob(compressedBase64);
+
+        // 3. Upload to Firebase Storage
+        const downloadUrl = await uploadFileToStorage(blob);
+
+        // 4. Pass URL to parent state
+        onImageChange(downloadUrl);
       } catch (error) {
-        console.error("Compression failed", error);
-        alert("Chyba při zpracování obrázku.");
+        console.error("Upload failed", error);
+        alert("Chyba při nahrávání obrázku. Zkuste to prosím znovu.");
+      } finally {
+        setIsUploading(false);
       }
     }
   };
@@ -81,24 +98,28 @@ const ImageUpload: React.FC<{
       <label className="block text-sm font-black text-black mb-2 uppercase tracking-wide">{label}</label>
       {description && <p className="text-xs text-slate-500 mb-2">{description}</p>}
       <div className="flex gap-4 items-center">
-        <div className={`overflow-hidden bg-slate-100 border border-slate-200 shrink-0 relative ${isAvatar ? 'w-20 h-20 rounded-full' : 'w-32 h-20 rounded-lg'}`}>
-           {/* Checkerboard background for transparent images */}
-           <div className="absolute inset-0 z-0 opacity-20" style={{backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', backgroundSize: '10px 10px'}}></div>
+        <div className={`overflow-hidden bg-slate-100 border border-slate-200 shrink-0 flex items-center justify-center relative ${isAvatar ? 'w-20 h-20 rounded-full' : 'w-32 h-20 rounded-lg'}`}>
+          {isUploading ? (
+             <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
+               <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+             </div>
+          ) : null}
+          
           {currentImage ? (
-             <img src={currentImage} alt="Preview" className="w-full h-full object-contain relative z-10" />
+             <img src={currentImage} alt="Preview" className="max-w-full max-h-full object-contain" />
           ) : (
-             <div className="w-full h-full flex items-center justify-center text-slate-400 relative z-10">
+             <div className="text-slate-400">
                <ImageIcon size={20} />
              </div>
           )}
         </div>
         <div className="flex-1">
-          <label className="cursor-pointer flex items-center justify-center w-full px-4 py-3 bg-white border border-slate-300 border-dashed rounded-lg hover:bg-slate-50 hover:border-primary transition-all group">
+          <label className={`cursor-pointer flex items-center justify-center w-full px-4 py-3 bg-white border border-slate-300 border-dashed rounded-lg hover:bg-slate-50 hover:border-primary transition-all group ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
             <div className="flex items-center gap-2 text-slate-600 group-hover:text-primary">
               <Upload size={18} />
-              <span className="text-sm font-medium">Vybrat soubor z počítače</span>
+              <span className="text-sm font-medium">{isUploading ? 'Nahrávám...' : 'Vybrat soubor'}</span>
             </div>
-            <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+            <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" disabled={isUploading} />
           </label>
         </div>
       </div>
@@ -107,10 +128,17 @@ const ImageUpload: React.FC<{
 };
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
-  const { content, updateContent, updateTeam, updateLocation, addProject, updateProject, removeProject, removeInquiry, updateInquiry, saveToCloud } = useContent();
-  const [activeTab, setActiveTab] = useState<'images' | 'texts' | 'team' | 'locations' | 'projects' | 'inquiries'>('inquiries');
+  const { 
+    content, updateContent, updateTeam, updateLocation, 
+    addProject, updateProject, removeProject, 
+    addClient, updateClient, removeClient, reorderClients,
+    removeInquiry, updateInquiry, saveToCloud 
+  } = useContent();
+
+  const [activeTab, setActiveTab] = useState<'images' | 'texts' | 'team' | 'locations' | 'projects' | 'clients' | 'inquiries'>('inquiries');
   
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [uploadingStatus, setUploadingStatus] = useState<string | null>(null); // To show global upload status if needed
 
   // New/Edit Project State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -135,10 +163,144 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     } catch (error) {
       console.error(error);
       setSaveStatus('error');
-      alert("Chyba při ukládání: Pravděpodobně bylo nahráno příliš mnoho velkých obrázků. Zkuste prosím některé smazat nebo zmenšit.");
+      alert("Chyba při ukládání nastavení. Zkontrolujte připojení.");
     }
   };
 
+  // --- Client Logic ---
+  const handleMoveClient = (index: number, direction: 'left' | 'right') => {
+    const clients = [...(content.clients || [])];
+    const targetIndex = direction === 'left' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= clients.length) return;
+    
+    [clients[index], clients[targetIndex]] = [clients[targetIndex], clients[index]];
+    reorderClients(clients);
+  };
+
+  const handleClientLogoUpload = async (clientId: string, file: File) => {
+    const originalText = document.getElementById(`client-upload-text-${clientId}`);
+    if(originalText) originalText.innerText = "Nahrávám...";
+
+    try {
+      // Compress
+      const compressedBase64 = await compressImage(file, 300, 0.8);
+      // Convert to Blob
+      const blob = dataURItoBlob(compressedBase64);
+      // Upload to Storage
+      const url = await uploadFileToStorage(blob);
+      // Save URL
+      updateClient(clientId, { logoUrl: url });
+    } catch (e) {
+      alert("Chyba nahrávání loga");
+    } finally {
+      if(originalText) originalText.innerText = "Nahrát logo";
+    }
+  };
+
+  // --- Hero Images Logic ---
+  const handleHeroImagesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const currentImages = content.heroImages || [];
+      const remainingSlots = 4 - currentImages.length;
+      
+      if (remainingSlots <= 0) {
+        alert("Maximální počet fotografií je 4. Prosím, smažte některé stávající před nahráním nových.");
+        return;
+      }
+
+      setUploadingStatus("Nahrávám fotografie...");
+      const fileArray = Array.from(files).slice(0, remainingSlots) as File[];
+      const newImages: string[] = [];
+      
+      for (const file of fileArray) {
+        try {
+          // 1. Compress
+          const compressed = await compressImage(file, 1600, 0.8);
+          // 2. Blob
+          const blob = dataURItoBlob(compressed);
+          // 3. Upload
+          const url = await uploadFileToStorage(blob);
+          newImages.push(url);
+        } catch (err) {
+          console.error("Skipped image", err);
+        }
+      }
+
+      updateContent({ heroImages: [...currentImages, ...newImages] });
+      setUploadingStatus(null);
+    }
+  };
+
+  const removeHeroImage = (index: number) => {
+    const currentImages = content.heroImages || [];
+    const newImages = currentImages.filter((_, i) => i !== index);
+    updateContent({ heroImages: newImages });
+  };
+
+  const moveHeroImage = (index: number, direction: 'left' | 'right') => {
+    const currentImages = [...(content.heroImages || [])];
+    const targetIndex = direction === 'left' ? index - 1 : index + 1;
+    
+    if (targetIndex < 0 || targetIndex >= currentImages.length) return;
+    
+    [currentImages[index], currentImages[targetIndex]] = [currentImages[targetIndex], currentImages[index]];
+    updateContent({ heroImages: currentImages });
+  };
+
+
+  // --- Location Logic (Multi-image) ---
+  const handleLocationImagesChange = async (locationId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const loc = content.locations.find(l => l.id === locationId);
+      if(!loc) return;
+
+      setUploadingStatus("Nahrávám fotografie lokality...");
+
+      const fileArray = Array.from(files) as File[];
+      const newImages: string[] = [];
+      
+      for (const file of fileArray) {
+        try {
+          const compressed = await compressImage(file, 1200, 0.8);
+          const blob = dataURItoBlob(compressed);
+          const url = await uploadFileToStorage(blob);
+          newImages.push(url);
+        } catch (err) {
+          console.error("Skipped image due to error", err);
+        }
+      }
+
+      updateLocation(locationId, {
+        imageUrls: [...(loc.imageUrls || []), ...newImages]
+      });
+      setUploadingStatus(null);
+    }
+  };
+
+  const moveLocationImage = (locationId: string, imgIndex: number, direction: 'left' | 'right') => {
+    const loc = content.locations.find(l => l.id === locationId);
+    if(!loc || !loc.imageUrls) return;
+    
+    const newImages = [...loc.imageUrls];
+    const targetIndex = direction === 'left' ? imgIndex - 1 : imgIndex + 1;
+
+    if (targetIndex < 0 || targetIndex >= newImages.length) return;
+    
+    [newImages[imgIndex], newImages[targetIndex]] = [newImages[targetIndex], newImages[imgIndex]];
+    updateLocation(locationId, { imageUrls: newImages });
+  };
+
+  const removeLocationImage = (locationId: string, imgIndex: number) => {
+    const loc = content.locations.find(l => l.id === locationId);
+    if(!loc || !loc.imageUrls) return;
+    
+    const newImages = loc.imageUrls.filter((_, i) => i !== imgIndex);
+    updateLocation(locationId, { imageUrls: newImages });
+  };
+
+  // --- Project Logic ---
   const openAddProject = () => {
     setEditingProjectId(null);
     setProjectForm({ title: '', client: '', date: '', guests: 0, description: '', imageUrls: [], tags: [] });
@@ -182,26 +344,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const handleProjectImagesChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
+      setUploadingStatus("Nahrávám fotografie projektu...");
       const fileArray = Array.from(files) as File[];
       const newImages: string[] = [];
-      let processedCount = 0;
 
       for (const file of fileArray) {
         try {
-          // Stronger compression for gallery images to fit multiple into Firestore
-          // Photos stay JPEG
-          const compressed = await compressImage(file, 800, 0.6, 'image/jpeg');
-          newImages.push(compressed);
+          const compressed = await compressImage(file, 1200, 0.8);
+          const blob = dataURItoBlob(compressed);
+          const url = await uploadFileToStorage(blob);
+          newImages.push(url);
         } catch (err) {
           console.error("Skipped image due to error", err);
         }
-        processedCount++;
       }
 
       setProjectForm(prev => ({
           ...prev,
           imageUrls: [...(prev.imageUrls || []), ...newImages]
       }));
+      setUploadingStatus(null);
     }
   };
 
@@ -232,7 +394,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     }));
   };
 
-  // Function to format date safely
   const formatDate = (dateString: string) => {
     try {
       return new Date(dateString).toLocaleString('cs-CZ');
@@ -243,6 +404,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-28">
+      {/* Global Uploading Indicator */}
+      {uploadingStatus && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex flex-col items-center justify-center text-white">
+          <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="font-bold text-xl animate-pulse">{uploadingStatus}</p>
+          <p className="text-sm text-white/70">Prosím neopouštějte stránku...</p>
+        </div>
+      )}
+
       {/* Admin Nav */}
       <nav className="bg-slate-900 text-white shadow-lg sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -270,6 +440,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                 {content.inquiries.filter(i => !i.status || i.status === 'new').length}
               </span>
             )}
+          </button>
+          <button onClick={() => setActiveTab('clients')} className={`flex items-center gap-2 px-6 py-3 rounded-lg font-bold transition-all ${activeTab === 'clients' ? 'bg-primary text-white shadow-lg' : 'bg-white text-slate-600 hover:bg-slate-100'}`}>
+            <Building size={20} /> Klienti
           </button>
           <button onClick={() => setActiveTab('texts')} className={`flex items-center gap-2 px-6 py-3 rounded-lg font-bold transition-all ${activeTab === 'texts' ? 'bg-primary text-white shadow-lg' : 'bg-white text-slate-600 hover:bg-slate-100'}`}>
             <AlignLeft size={20} /> Texty
@@ -373,6 +546,96 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           </div>
         )}
 
+        {/* ================== CLIENTS TAB ================== */}
+        {activeTab === 'clients' && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 max-w-5xl">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="font-serif text-2xl font-bold text-slate-800">Správa klientů a log</h3>
+              <button 
+                onClick={() => addClient({ id: Date.now().toString(), name: "Nový klient" })}
+                className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg font-bold hover:bg-primary-dark transition-colors"
+              >
+                <Plus size={20} /> Přidat klienta
+              </button>
+            </div>
+
+            <p className="text-slate-500 mb-6 bg-slate-50 p-4 rounded-lg border border-slate-200">
+              Nahrajte loga klientů. Pokud logo nenahrajete, zobrazí se na webu pouze název textem. <br/>
+              Loga se automaticky zobrazují černobíle a po najetí myší se obarví. Doporučený formát: PNG s průhledností nebo bílým pozadím.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {(content.clients || []).map((client, index) => (
+                <div key={client.id} className="border border-slate-200 rounded-xl p-4 bg-white hover:shadow-md transition-shadow relative group">
+                  
+                  {/* Reordering */}
+                  <div className="absolute top-2 right-2 flex gap-1 z-10">
+                     <button 
+                       onClick={() => handleMoveClient(index, 'left')} 
+                       disabled={index === 0}
+                       className="p-1 bg-slate-100 hover:bg-primary hover:text-white rounded disabled:opacity-30"
+                       title="Posunout doleva"
+                     >
+                       <ChevronLeft size={16} />
+                     </button>
+                     <button 
+                       onClick={() => handleMoveClient(index, 'right')}
+                       disabled={index === (content.clients?.length || 0) - 1}
+                       className="p-1 bg-slate-100 hover:bg-primary hover:text-white rounded disabled:opacity-30"
+                       title="Posunout doprava"
+                     >
+                       <ChevronRight size={16} />
+                     </button>
+                     <button 
+                       onClick={() => { if(confirm('Smazat klienta?')) removeClient(client.id); }}
+                       className="p-1 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded ml-2"
+                       title="Smazat"
+                     >
+                       <Trash2 size={16} />
+                     </button>
+                  </div>
+
+                  <div className="flex flex-col gap-4 mt-6">
+                    {/* Logo Area */}
+                    <div className="w-full h-32 bg-slate-50 border-2 border-dashed border-slate-200 rounded-lg flex items-center justify-center relative overflow-hidden group/upload">
+                      {client.logoUrl ? (
+                        <img src={client.logoUrl} alt={client.name} className="max-w-full max-h-full object-contain p-2" />
+                      ) : (
+                        <span className="text-slate-400 text-sm font-bold">Bez loga</span>
+                      )}
+                      
+                      <label className="absolute inset-0 bg-black/50 opacity-0 group-hover/upload:opacity-100 flex flex-col items-center justify-center text-white cursor-pointer transition-opacity">
+                         <Upload size={24} className="mb-1"/>
+                         <span id={`client-upload-text-${client.id}`} className="text-xs font-bold">Nahrát logo</span>
+                         <input 
+                           type="file" 
+                           accept="image/*" 
+                           className="hidden" 
+                           onChange={(e) => {
+                             const file = e.target.files?.[0];
+                             if (file) handleClientLogoUpload(client.id, file);
+                           }} 
+                         />
+                      </label>
+                    </div>
+
+                    {/* Name Input */}
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-slate-400 mb-1">Název klienta</label>
+                      <input 
+                        type="text" 
+                        value={client.name}
+                        onChange={(e) => updateClient(client.id, { name: e.target.value })}
+                        className="w-full p-2 border border-slate-200 rounded font-bold text-slate-700 focus:border-primary outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* ================== TEXTS TAB ================== */}
         {activeTab === 'texts' && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 max-w-3xl">
@@ -437,9 +700,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             
             <ImageUpload 
                label="Favicon (Ikonka webu)" 
-               description="Malá ikonka do záložky prohlížeče. Nahrajte PNG s průhledností."
+               description="Malá ikonka v záložce prohlížeče. Doporučeno: 32x32px nebo 64x64px (čtverec)."
                isAvatar
-               forcePng={true} // FORCE PNG to keep transparency
                currentImage={content.faviconUrl || ''} 
                onImageChange={(val) => { updateContent({ faviconUrl: val }); }} 
             />
@@ -448,27 +710,85 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
             <ImageUpload 
                label="Logo (pro tmavé pozadí)" 
-               description="Zobrazí se nahoře na banneru. Ideálně bílé/světlé PNG s průhledností."
+               description="Zobrazí se nahoře na banneru. Ideálně bílé/světlé PNG s průhledností. Doporučená šířka cca 200-300px."
                currentImage={content.logoDarkBgUrl || content.logoUrl} 
-               forcePng={true} // Logos need transparency
                onImageChange={(val) => { updateContent({ logoDarkBgUrl: val }); }} 
             />
             <ImageUpload 
                label="Logo (pro světlé pozadí)" 
-               description="Zobrazí se při scrollování na bílé liště. Ideálně tmavé PNG s průhledností."
+               description="Zobrazí se při scrollování na bílé liště. Ideálně tmavé PNG. Doporučená šířka cca 200-300px."
                currentImage={content.logoLightBgUrl || content.logoUrl} 
-               forcePng={true} // Logos need transparency
                onImageChange={(val) => { updateContent({ logoLightBgUrl: val }); }} 
             />
 
             <hr className="my-6"/>
+            
+            {/* HERO IMAGES SECTION - MODIFIED FOR 4 IMAGES */}
+            <div className="mb-6">
+              <label className="block text-sm font-black text-black mb-2 uppercase tracking-wide">Hlavní banner (Hero) - Slider (max 4)</label>
+              <p className="text-xs text-slate-500 mb-4">
+                 Nahrajte až 4 fotografie, které se budou plynule prolínat na úvodní obrazovce.
+              </p>
 
-            <ImageUpload 
-               label="Hlavní banner (Hero)" 
-               description="Velký obrázek na úvodní stránce."
-               currentImage={content.heroImage} 
-               onImageChange={(val) => { updateContent({ heroImage: val }); }} 
-            />
+              <div className="flex gap-2 overflow-x-auto pb-4 border border-slate-100 p-2 rounded-lg bg-slate-50 min-h-[140px]">
+                  {content.heroImages && content.heroImages.length > 0 ? (
+                    content.heroImages.map((img, idx) => (
+                      <div key={idx} className="relative w-40 h-28 shrink-0 rounded-lg overflow-hidden group border border-slate-200 shadow-sm bg-white">
+                         <img src={img} className="w-full h-full object-cover" />
+                         
+                         {/* Overlay Actions */}
+                         <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                           <div className="flex gap-1">
+                             {idx > 0 && (
+                               <button 
+                                 type="button"
+                                 onClick={() => moveHeroImage(idx, 'left')}
+                                 className="p-1 bg-white text-slate-900 rounded hover:bg-primary hover:text-white"
+                                 title="Posunout doleva"
+                               >
+                                 <ChevronLeft size={14} />
+                               </button>
+                             )}
+                             {idx < (content.heroImages?.length || 0) - 1 && (
+                               <button 
+                                 type="button"
+                                 onClick={() => moveHeroImage(idx, 'right')}
+                                 className="p-1 bg-white text-slate-900 rounded hover:bg-primary hover:text-white"
+                                 title="Posunout doprava"
+                               >
+                                 <ChevronRight size={14} />
+                               </button>
+                             )}
+                           </div>
+                           <button 
+                              type="button"
+                              onClick={() => removeHeroImage(idx)}
+                              className="p-1 bg-red-500 text-white rounded hover:bg-red-600 mt-1"
+                              title="Smazat fotku"
+                           >
+                              <Trash2 size={14} />
+                           </button>
+                         </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="w-full flex flex-col items-center justify-center text-slate-400 text-sm">
+                      <ImageIcon size={24} className="mb-2 opacity-50"/>
+                      <span>Zatím žádné fotografie</span>
+                    </div>
+                  )}
+                  
+                  {/* Add Button Inline - Show only if less than 4 images */}
+                  {(!content.heroImages || content.heroImages.length < 4) && (
+                    <label className="cursor-pointer w-40 h-28 shrink-0 flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-lg hover:border-primary hover:bg-primary/5 transition-all bg-white">
+                        <Plus size={24} className="text-slate-400 mb-1"/>
+                        <span className="text-xs font-bold text-slate-500">Přidat</span>
+                        <input type="file" multiple accept="image/*" onChange={handleHeroImagesUpload} className="hidden" />
+                    </label>
+                  )}
+               </div>
+            </div>
+
             <ImageUpload 
                label="O nás (Sekce Vítejte)" 
                currentImage={content.aboutImage} 
@@ -529,26 +849,92 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
         {/* ================== LOCATIONS TAB ================== */}
         {activeTab === 'locations' && (
-          <div className="space-y-6 max-w-4xl">
-             <h3 className="font-serif text-2xl font-bold text-slate-800">Unikátní Lokality</h3>
+          <div className="space-y-8 max-w-5xl">
+             <div className="flex justify-between items-center">
+               <h3 className="font-serif text-2xl font-bold text-slate-800">Unikátní Lokality</h3>
+             </div>
+             
              {content.locations.map((loc) => (
-                <div key={loc.id} className="bg-white rounded-xl p-6 shadow-sm border border-slate-100 flex flex-col md:flex-row gap-6 items-start">
-                   <div className="shrink-0">
-                      <ImageUpload 
-                        label="" 
-                        currentImage={loc.imageUrl} 
-                        onImageChange={(val) => { updateLocation(loc.id, { imageUrl: val }); }}
-                      />
-                   </div>
-                   <div className="flex-1 w-full space-y-4">
-                      <div>
-                        <label className="block text-xs font-black text-black mb-1 uppercase">Název lokality</label>
-                        <input type="text" className="w-full p-2 border rounded text-black font-bold" value={loc.title} onChange={(e) => { updateLocation(loc.id, {title: e.target.value}); }} />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-black text-black mb-1 uppercase">Popis</label>
-                        <textarea className="w-full p-2 border rounded text-black text-sm" rows={3} value={loc.description} onChange={(e) => { updateLocation(loc.id, {description: e.target.value}); }} />
-                      </div>
+                <div key={loc.id} className="bg-white rounded-xl p-6 shadow-sm border border-slate-100 flex flex-col gap-6">
+                   <div className="grid md:grid-cols-2 gap-6">
+                     <div className="w-full space-y-4">
+                        <div>
+                          <label className="block text-xs font-black text-black mb-1 uppercase">Název lokality</label>
+                          <input type="text" className="w-full p-2 border rounded text-black font-bold" value={loc.title} onChange={(e) => { updateLocation(loc.id, {title: e.target.value}); }} />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-black text-black mb-1 uppercase">Popis</label>
+                          <textarea className="w-full p-2 border rounded text-black text-sm h-32" rows={3} value={loc.description} onChange={(e) => { updateLocation(loc.id, {description: e.target.value}); }} />
+                        </div>
+                     </div>
+                     
+                     <div className="space-y-4">
+                        <label className="block text-xs font-black text-black mb-1 uppercase">Fotogalerie lokality</label>
+                        <p className="text-xs text-slate-500 mb-2">První fotografie je náhledová. Další se zobrazí v galerii po rozkliknutí.</p>
+                        
+                        {/* Location Images List */}
+                        <div className="flex gap-2 overflow-x-auto pb-4 border border-slate-100 p-2 rounded-lg bg-slate-50 min-h-[140px]">
+                           {loc.imageUrls && loc.imageUrls.length > 0 ? (
+                             loc.imageUrls.map((img, idx) => (
+                               <div key={idx} className="relative w-32 h-32 shrink-0 rounded-lg overflow-hidden group border border-slate-200 shadow-sm bg-white">
+                                  <img src={img} className="w-full h-full object-cover" />
+                                  
+                                  {/* Overlay Actions */}
+                                  <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="flex gap-1">
+                                      {idx > 0 && (
+                                        <button 
+                                          type="button"
+                                          onClick={() => moveLocationImage(loc.id, idx, 'left')}
+                                          className="p-1 bg-white text-slate-900 rounded hover:bg-primary hover:text-white"
+                                          title="Posunout doleva (hlavní)"
+                                        >
+                                          <ChevronLeft size={14} />
+                                        </button>
+                                      )}
+                                      {idx < (loc.imageUrls?.length || 0) - 1 && (
+                                        <button 
+                                          type="button"
+                                          onClick={() => moveLocationImage(loc.id, idx, 'right')}
+                                          className="p-1 bg-white text-slate-900 rounded hover:bg-primary hover:text-white"
+                                          title="Posunout doprava"
+                                        >
+                                          <ChevronRight size={14} />
+                                        </button>
+                                      )}
+                                    </div>
+                                    <button 
+                                       type="button"
+                                       onClick={() => removeLocationImage(loc.id, idx)}
+                                       className="p-1 bg-red-500 text-white rounded hover:bg-red-600 mt-1"
+                                       title="Smazat fotku"
+                                    >
+                                       <Trash2 size={14} />
+                                    </button>
+                                  </div>
+                                  
+                                  {idx === 0 && (
+                                    <div className="absolute bottom-0 left-0 right-0 bg-primary/90 text-white text-[9px] font-bold text-center py-1">
+                                      HLAVNÍ
+                                    </div>
+                                  )}
+                               </div>
+                             ))
+                           ) : (
+                             <div className="w-full flex flex-col items-center justify-center text-slate-400 text-sm">
+                               <ImageIcon size={24} className="mb-2 opacity-50"/>
+                               <span>Zatím žádné fotografie</span>
+                             </div>
+                           )}
+                           
+                           {/* Add Button Inline */}
+                           <label className="cursor-pointer w-32 h-32 shrink-0 flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-lg hover:border-primary hover:bg-primary/5 transition-all bg-white">
+                               <Plus size={24} className="text-slate-400 mb-1"/>
+                               <span className="text-xs font-bold text-slate-500">Přidat</span>
+                               <input type="file" multiple accept="image/*" onChange={(e) => handleLocationImagesChange(loc.id, e)} className="hidden" />
+                           </label>
+                        </div>
+                     </div>
                    </div>
                 </div>
              ))}
