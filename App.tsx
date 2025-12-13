@@ -20,12 +20,15 @@ const FaviconUpdater: React.FC = () => {
 
   useEffect(() => {
     if (content.faviconUrl) {
-      let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+      // Find existing or create new
+      let link = document.querySelector("link[rel*='icon']") as HTMLLinkElement;
       if (!link) {
         link = document.createElement('link');
-        link.rel = 'icon';
-        document.getElementsByTagName('head')[0].appendChild(link);
+        link.rel = 'shortcut icon';
+        document.head.appendChild(link);
       }
+      // Force PNG type to ensure transparency works
+      link.type = 'image/png';
       link.href = content.faviconUrl;
     }
   }, [content.faviconUrl]);

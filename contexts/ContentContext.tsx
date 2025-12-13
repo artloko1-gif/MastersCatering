@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { ContentContextType, SiteContent, PortfolioItem, LocationItem, TeamContent, Inquiry } from '../types';
-import { saveContentToDB, getContentFromDB } from '../utils/db';
+import { saveContentToDB, getContentFromDB, deleteDocument } from '../utils/db';
 import { defaultContent } from '../data/defaultContent';
 
 const ContentContext = createContext<ContentContextType | undefined>(undefined);
@@ -15,7 +15,8 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
       try {
         const dbContent = await getContentFromDB();
         if (dbContent) {
-          // Merge with default to ensure new fields (like inquiries) exist if DB has old structure
+          // Merge with default to ensure new fields exist if DB has old structure
+          // Note: dbContent now comes from merged collections + main doc
           setContent(prev => ({ ...defaultContent, ...dbContent }));
         }
       } catch (e) {
@@ -59,11 +60,21 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }));
   };
 
-  const removeProject = (id: string) => {
+  const removeProject = async (id: string) => {
+    // 1. Remove from local state
     setContent(prev => ({
       ...prev,
       projects: prev.projects.filter(p => p.id !== id)
     }));
+
+    // 2. Remove from DB immediately to free up space/cleanup
+    if (isInitialized) {
+       try {
+           await deleteDocument('projects', id);
+       } catch (e) {
+           console.error("Failed to delete project from DB", e);
+       }
+    }
   };
 
   // IMMEDIATE SAVE for Inquiries (from Public Site)
@@ -76,7 +87,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
       inquiries: newInquiries
     }));
 
-    // Save to DB immediately
+    // Save to DB immediately (using saveContentToDB which handles the split)
     if (isInitialized) {
       await saveContentToDB({ ...content, inquiries: newInquiries });
     }
@@ -99,15 +110,20 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const removeInquiry = async (id: string) => {
+    // 1. Remove from local state
     const remainingInquiries = (content.inquiries || []).filter(i => i.id !== id);
-    
     setContent(prev => ({
       ...prev,
       inquiries: remainingInquiries
     }));
 
+    // 2. Remove from DB immediately
     if (isInitialized) {
-      await saveContentToDB({ ...content, inquiries: remainingInquiries });
+       try {
+           await deleteDocument('inquiries', id);
+       } catch (e) {
+           console.error("Failed to delete inquiry from DB", e);
+       }
     }
   };
 

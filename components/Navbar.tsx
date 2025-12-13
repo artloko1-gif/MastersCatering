@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Menu, X, UtensilsCrossed } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -26,17 +25,25 @@ export const Navbar: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Logic to determine which logo image to show
-  // If scrolled (white bg) -> prefer LightBgUrl, fallback to generic logoUrl
-  // If top (transparent bg) -> prefer DarkBgUrl, fallback to generic logoUrl
-  const activeLogo = isScrolled 
-    ? (content.logoLightBgUrl || content.logoUrl) 
-    : (content.logoDarkBgUrl || content.logoUrl);
+  // --- LOGO LOGIC ---
+  // We want to show an image at all costs if one exists.
+  
+  // 1. Identify valid sources
+  const darkBgLogo = content.logoDarkBgUrl || content.logoUrl; // Intended for Dark Background (White logo)
+  const lightBgLogo = content.logoLightBgUrl || content.logoUrl; // Intended for Light Background (Colored/Black logo)
+  const anyLogo = darkBgLogo || lightBgLogo;
 
-  // Logic to determine if we need to force the logo to white using CSS filters
-  // We do this ONLY if we are at the top (!isScrolled) AND we are using the generic fallback logo 
-  // (assuming the generic logo is dark/colored and needs to be white on the dark hero image)
-  const shouldInvertLogo = !isScrolled && !content.logoDarkBgUrl && content.logoUrl;
+  // 2. Determine which one to use based on scroll state
+  // If scrolled (White Bar), prefer lightBgLogo. Fallback to darkBgLogo if light is missing.
+  // If top (Dark Hero), prefer darkBgLogo. Fallback to lightBgLogo if dark is missing.
+  const activeLogo = isScrolled 
+    ? (lightBgLogo || darkBgLogo) 
+    : (darkBgLogo || lightBgLogo);
+
+  // 3. Determine if we need to invert colors via CSS
+  // This happens if we are forced to use a Light-Bg logo (dark text) on the Dark Hero background
+  // because the user hasn't uploaded a specific Dark-Bg logo yet.
+  const forceInvertToWhite = !isScrolled && !content.logoDarkBgUrl && (content.logoLightBgUrl || content.logoUrl);
 
   return (
     <nav
@@ -51,10 +58,11 @@ export const Navbar: React.FC = () => {
             {activeLogo ? (
               <img 
                 src={activeLogo} 
-                alt="Logo" 
-                className={`h-12 w-auto object-contain transition-all duration-300 ${shouldInvertLogo ? 'brightness-0 invert' : ''}`} 
+                alt="Master's Catering Logo" 
+                className={`h-12 w-auto object-contain transition-all duration-300 ${forceInvertToWhite ? 'brightness-0 invert' : ''}`} 
               />
             ) : (
+              // Fallback to text ONLY if absolutely no image is found in DB
               <>
                 <div className={`p-2 rounded-full ${isScrolled ? 'bg-primary text-white' : 'bg-white text-primary'}`}>
                    <UtensilsCrossed size={24} />

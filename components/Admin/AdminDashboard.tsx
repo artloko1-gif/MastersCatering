@@ -9,8 +9,8 @@ interface AdminDashboardProps {
 
 // --- Image Compression Utility ---
 // Optimized for Firestore Document Limits (1MB limit per doc)
-// Reduced max width and quality to ensure multiple images fit
-const compressImage = (file: File, maxWidth = 800, quality = 0.6): Promise<string> => {
+// Updated to support PNG for transparency (essential for Favicons)
+const compressImage = (file: File, maxWidth = 800, quality = 0.6, format = 'image/jpeg'): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -36,8 +36,8 @@ const compressImage = (file: File, maxWidth = 800, quality = 0.6): Promise<strin
         }
         ctx.drawImage(img, 0, 0, width, height);
         
-        // Convert to JPEG with reduced quality
-        const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+        // Convert to specified format (JPEG for photos, PNG for icons/logos with transparency)
+        const compressedDataUrl = canvas.toDataURL(format, quality);
         resolve(compressedDataUrl);
       };
       img.onerror = (err) => reject(err);
@@ -53,14 +53,21 @@ const ImageUpload: React.FC<{
   label: string;
   description?: string;
   isAvatar?: boolean;
-}> = ({ currentImage, onImageChange, label, description, isAvatar = false }) => {
+  forcePng?: boolean; // New prop to force PNG format
+}> = ({ currentImage, onImageChange, label, description, isAvatar = false, forcePng = false }) => {
   
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       try {
         // Use smaller size for avatars/favicons
-        const compressedBase64 = await compressImage(file, isAvatar ? 300 : 1000, 0.7);
+        // If forcePng is true, use 'image/png' to preserve transparency
+        const size = isAvatar ? 300 : 1000;
+        const format = forcePng ? 'image/png' : 'image/jpeg';
+        // PNGs usually need higher quality setting to look good, JPEGs can be compressed more
+        const quality = forcePng ? 0.9 : 0.7;
+        
+        const compressedBase64 = await compressImage(file, size, quality, format);
         onImageChange(compressedBase64);
       } catch (error) {
         console.error("Compression failed", error);
@@ -74,11 +81,13 @@ const ImageUpload: React.FC<{
       <label className="block text-sm font-black text-black mb-2 uppercase tracking-wide">{label}</label>
       {description && <p className="text-xs text-slate-500 mb-2">{description}</p>}
       <div className="flex gap-4 items-center">
-        <div className={`overflow-hidden bg-slate-100 border border-slate-200 shrink-0 ${isAvatar ? 'w-20 h-20 rounded-full' : 'w-32 h-20 rounded-lg'}`}>
+        <div className={`overflow-hidden bg-slate-100 border border-slate-200 shrink-0 relative ${isAvatar ? 'w-20 h-20 rounded-full' : 'w-32 h-20 rounded-lg'}`}>
+           {/* Checkerboard background for transparent images */}
+           <div className="absolute inset-0 z-0 opacity-20" style={{backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', backgroundSize: '10px 10px'}}></div>
           {currentImage ? (
-             <img src={currentImage} alt="Preview" className="w-full h-full object-cover" />
+             <img src={currentImage} alt="Preview" className="w-full h-full object-contain relative z-10" />
           ) : (
-             <div className="w-full h-full flex items-center justify-center text-slate-400">
+             <div className="w-full h-full flex items-center justify-center text-slate-400 relative z-10">
                <ImageIcon size={20} />
              </div>
           )}
@@ -180,7 +189,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       for (const file of fileArray) {
         try {
           // Stronger compression for gallery images to fit multiple into Firestore
-          const compressed = await compressImage(file, 800, 0.6);
+          // Photos stay JPEG
+          const compressed = await compressImage(file, 800, 0.6, 'image/jpeg');
           newImages.push(compressed);
         } catch (err) {
           console.error("Skipped image due to error", err);
@@ -427,8 +437,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             
             <ImageUpload 
                label="Favicon (Ikonka webu)" 
-               description="Malá ikonka, která se zobrazuje v záložce prohlížeče."
+               description="Malá ikonka do záložky prohlížeče. Nahrajte PNG s průhledností."
                isAvatar
+               forcePng={true} // FORCE PNG to keep transparency
                currentImage={content.faviconUrl || ''} 
                onImageChange={(val) => { updateContent({ faviconUrl: val }); }} 
             />
@@ -437,14 +448,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
             <ImageUpload 
                label="Logo (pro tmavé pozadí)" 
-               description="Zobrazí se nahoře na banneru. Ideálně bílé/světlé PNG."
+               description="Zobrazí se nahoře na banneru. Ideálně bílé/světlé PNG s průhledností."
                currentImage={content.logoDarkBgUrl || content.logoUrl} 
+               forcePng={true} // Logos need transparency
                onImageChange={(val) => { updateContent({ logoDarkBgUrl: val }); }} 
             />
             <ImageUpload 
                label="Logo (pro světlé pozadí)" 
-               description="Zobrazí se při scrollování na bílé liště. Ideálně tmavé PNG."
+               description="Zobrazí se při scrollování na bílé liště. Ideálně tmavé PNG s průhledností."
                currentImage={content.logoLightBgUrl || content.logoUrl} 
+               forcePng={true} // Logos need transparency
                onImageChange={(val) => { updateContent({ logoLightBgUrl: val }); }} 
             />
 
