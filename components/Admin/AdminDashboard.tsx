@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import { useContent } from '../../contexts/ContentContext';
-import { LogOut, Image as ImageIcon, Briefcase, Plus, Trash2, Save, X, Upload, Pencil, Users, MapPin, AlignLeft, MessageSquare, Check, Calendar, Mail, Download, FileCode } from 'lucide-react';
+import { LogOut, Image as ImageIcon, Briefcase, Plus, Trash2, Save, X, Upload, Pencil, Users, MapPin, AlignLeft, MessageSquare, Check, Calendar, Mail, CloudUpload, AlertCircle } from 'lucide-react';
 import { PortfolioItem, LocationItem } from '../../types';
 
 interface AdminDashboardProps {
@@ -96,10 +95,10 @@ const ImageUpload: React.FC<{
 };
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
-  const { content, updateContent, updateTeam, updateLocation, addProject, updateProject, removeProject, removeInquiry } = useContent();
+  const { content, updateContent, updateTeam, updateLocation, addProject, updateProject, removeProject, removeInquiry, saveToCloud } = useContent();
   const [activeTab, setActiveTab] = useState<'images' | 'texts' | 'team' | 'locations' | 'projects' | 'inquiries'>('inquiries');
   
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'saving_file'>('idle');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
   // New/Edit Project State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -115,64 +114,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     tags: []
   });
 
-  const triggerSave = () => {
-    setSaveStatus('saved');
-    setTimeout(() => setSaveStatus('idle'), 2000);
-  };
-
-  const getFileContent = () => {
-    return `import { SiteContent } from '../types';
-
-export const defaultContent: SiteContent = ${JSON.stringify(content, null, 2)};`;
-  };
-
-  // --- Export Functionality (Fallback) ---
-  const handleExportForWeb = () => {
-    const fileContent = getFileContent();
-    const blob = new Blob([fileContent], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'defaultContent.ts';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    alert("Soubor 'defaultContent.ts' byl stažen. Přesuňte ho do složky 'data/'.");
-  };
-
-  // --- Direct File Save (File System Access API) ---
-  const handleDirectFileSave = async () => {
-    if (!('showSaveFilePicker' in window)) {
-      alert("Váš prohlížeč nepodporuje přímé ukládání. Použijte prosím tlačítko Stáhnout.");
-      handleExportForWeb();
-      return;
-    }
-
+  const handlePublish = async () => {
+    setSaveStatus('saving');
     try {
-      setSaveStatus('saving_file');
-      
-      // @ts-ignore - Types for File System Access API might be missing in some setups
-      const handle = await window.showSaveFilePicker({
-        suggestedName: 'defaultContent.ts',
-        types: [{
-          description: 'TypeScript File',
-          accept: { 'text/typescript': ['.ts'], 'text/plain': ['.ts'] },
-        }],
-      });
-
-      const writable = await handle.createWritable();
-      await writable.write(getFileContent());
-      await writable.close();
-
-      alert("ÚSPĚCH! Soubor byl přepsán.\n\nNyní stačí, aby se aplikace znovu načetla (pokud běžíte lokálně, stiskněte F5).");
-      setSaveStatus('idle');
-    } catch (err: any) {
-      console.error(err);
-      setSaveStatus('idle');
-      if (err.name !== 'AbortError') {
-        alert("Chyba při ukládání souboru. Zkuste to znovu nebo použijte stažení.");
-      }
+      await saveToCloud();
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    } catch (error) {
+      console.error(error);
+      setSaveStatus('error');
     }
   };
 
@@ -214,7 +164,6 @@ export const defaultContent: SiteContent = ${JSON.stringify(content, null, 2)};`
     }
 
     setIsModalOpen(false);
-    triggerSave();
   };
 
   const handleProjectImagesChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -365,7 +314,7 @@ export const defaultContent: SiteContent = ${JSON.stringify(content, null, 2)};`
                   className="w-full p-2 border rounded text-black font-serif text-lg" 
                   rows={3}
                   value={content.textContent?.heroTitle} 
-                  onChange={(e) => { updateContent({ textContent: { ...content.textContent!, heroTitle: e.target.value } }); triggerSave(); }}
+                  onChange={(e) => { updateContent({ textContent: { ...content.textContent!, heroTitle: e.target.value } }); }}
                 />
               </div>
               <div>
@@ -374,7 +323,7 @@ export const defaultContent: SiteContent = ${JSON.stringify(content, null, 2)};`
                   type="text" 
                   className="w-full p-2 border rounded text-black" 
                   value={content.textContent?.heroTagline} 
-                  onChange={(e) => { updateContent({ textContent: { ...content.textContent!, heroTagline: e.target.value } }); triggerSave(); }}
+                  onChange={(e) => { updateContent({ textContent: { ...content.textContent!, heroTagline: e.target.value } }); }}
                 />
               </div>
               <div>
@@ -383,7 +332,7 @@ export const defaultContent: SiteContent = ${JSON.stringify(content, null, 2)};`
                   className="w-full p-2 border rounded text-black" 
                   rows={3}
                   value={content.textContent?.heroSubtitle} 
-                  onChange={(e) => { updateContent({ textContent: { ...content.textContent!, heroSubtitle: e.target.value } }); triggerSave(); }}
+                  onChange={(e) => { updateContent({ textContent: { ...content.textContent!, heroSubtitle: e.target.value } }); }}
                 />
               </div>
 
@@ -394,7 +343,7 @@ export const defaultContent: SiteContent = ${JSON.stringify(content, null, 2)};`
                   type="text" 
                   className="w-full p-2 border rounded text-black font-serif" 
                   value={content.textContent?.aboutTitle} 
-                  onChange={(e) => { updateContent({ textContent: { ...content.textContent!, aboutTitle: e.target.value } }); triggerSave(); }}
+                  onChange={(e) => { updateContent({ textContent: { ...content.textContent!, aboutTitle: e.target.value } }); }}
                 />
               </div>
               <div>
@@ -402,7 +351,7 @@ export const defaultContent: SiteContent = ${JSON.stringify(content, null, 2)};`
                 <textarea 
                   className="w-full p-2 border rounded text-black h-40" 
                   value={content.textContent?.aboutDescription} 
-                  onChange={(e) => { updateContent({ textContent: { ...content.textContent!, aboutDescription: e.target.value } }); triggerSave(); }}
+                  onChange={(e) => { updateContent({ textContent: { ...content.textContent!, aboutDescription: e.target.value } }); }}
                 />
               </div>
             </div>
@@ -418,13 +367,13 @@ export const defaultContent: SiteContent = ${JSON.stringify(content, null, 2)};`
                label="Logo (pro tmavé pozadí)" 
                description="Zobrazí se nahoře na banneru. Ideálně bílé/světlé PNG."
                currentImage={content.logoDarkBgUrl || content.logoUrl} 
-               onImageChange={(val) => { updateContent({ logoDarkBgUrl: val }); triggerSave(); }} 
+               onImageChange={(val) => { updateContent({ logoDarkBgUrl: val }); }} 
             />
             <ImageUpload 
                label="Logo (pro světlé pozadí)" 
                description="Zobrazí se při scrollování na bílé liště. Ideálně tmavé PNG."
                currentImage={content.logoLightBgUrl || content.logoUrl} 
-               onImageChange={(val) => { updateContent({ logoLightBgUrl: val }); triggerSave(); }} 
+               onImageChange={(val) => { updateContent({ logoLightBgUrl: val }); }} 
             />
 
             <hr className="my-6"/>
@@ -433,17 +382,17 @@ export const defaultContent: SiteContent = ${JSON.stringify(content, null, 2)};`
                label="Hlavní banner (Hero)" 
                description="Velký obrázek na úvodní stránce."
                currentImage={content.heroImage} 
-               onImageChange={(val) => { updateContent({ heroImage: val }); triggerSave(); }} 
+               onImageChange={(val) => { updateContent({ heroImage: val }); }} 
             />
             <ImageUpload 
                label="O nás (Sekce Vítejte)" 
                currentImage={content.aboutImage} 
-               onImageChange={(val) => { updateContent({ aboutImage: val }); triggerSave(); }} 
+               onImageChange={(val) => { updateContent({ aboutImage: val }); }} 
             />
              <ImageUpload 
                label="Kontakt (Obrázek budovy)" 
                currentImage={content.contactImage} 
-               onImageChange={(val) => { updateContent({ contactImage: val }); triggerSave(); }} 
+               onImageChange={(val) => { updateContent({ contactImage: val }); }} 
             />
           </div>
         )}
@@ -456,7 +405,7 @@ export const defaultContent: SiteContent = ${JSON.stringify(content, null, 2)};`
             <ImageUpload 
                label="Hlavní foto týmu" 
                currentImage={content.team.teamImage} 
-               onImageChange={(val) => { updateTeam({ teamImage: val }); triggerSave(); }} 
+               onImageChange={(val) => { updateTeam({ teamImage: val }); }} 
             />
             
             <hr className="my-6 border-slate-100"/>
@@ -467,28 +416,28 @@ export const defaultContent: SiteContent = ${JSON.stringify(content, null, 2)};`
                     label="Profilovka manažera" 
                     isAvatar
                     currentImage={content.team.managerImage} 
-                    onImageChange={(val) => { updateTeam({ managerImage: val }); triggerSave(); }} 
+                    onImageChange={(val) => { updateTeam({ managerImage: val }); }} 
                   />
                </div>
                <div className="space-y-4">
                  <div>
                    <label className="block text-sm font-black text-black mb-1 uppercase">Jméno manažera</label>
-                   <input type="text" className="w-full p-2 border rounded text-black" value={content.team.managerName} onChange={(e) => { updateTeam({managerName: e.target.value}); triggerSave(); }} />
+                   <input type="text" className="w-full p-2 border rounded text-black" value={content.team.managerName} onChange={(e) => { updateTeam({managerName: e.target.value}); }} />
                  </div>
                  <div>
                    <label className="block text-sm font-black text-black mb-1 uppercase">Pozice</label>
-                   <input type="text" className="w-full p-2 border rounded text-black" value={content.team.managerRole} onChange={(e) => { updateTeam({managerRole: e.target.value}); triggerSave(); }} />
+                   <input type="text" className="w-full p-2 border rounded text-black" value={content.team.managerRole} onChange={(e) => { updateTeam({managerRole: e.target.value}); }} />
                  </div>
                </div>
             </div>
 
             <div className="mt-4">
                 <label className="block text-sm font-black text-black mb-1 uppercase">Citát manažera</label>
-                <textarea className="w-full p-2 border rounded text-black" rows={3} value={content.team.managerQuote} onChange={(e) => { updateTeam({managerQuote: e.target.value}); triggerSave(); }} />
+                <textarea className="w-full p-2 border rounded text-black" rows={3} value={content.team.managerQuote} onChange={(e) => { updateTeam({managerQuote: e.target.value}); }} />
             </div>
              <div className="mt-4">
                 <label className="block text-sm font-black text-black mb-1 uppercase">Motto týmu</label>
-                <input className="w-full p-2 border rounded text-black" value={content.team.teamMotto} onChange={(e) => { updateTeam({teamMotto: e.target.value}); triggerSave(); }} />
+                <input className="w-full p-2 border rounded text-black" value={content.team.teamMotto} onChange={(e) => { updateTeam({teamMotto: e.target.value}); }} />
             </div>
           </div>
         )}
@@ -503,17 +452,17 @@ export const defaultContent: SiteContent = ${JSON.stringify(content, null, 2)};`
                       <ImageUpload 
                         label="" 
                         currentImage={loc.imageUrl} 
-                        onImageChange={(val) => { updateLocation(loc.id, { imageUrl: val }); triggerSave(); }}
+                        onImageChange={(val) => { updateLocation(loc.id, { imageUrl: val }); }}
                       />
                    </div>
                    <div className="flex-1 w-full space-y-4">
                       <div>
                         <label className="block text-xs font-black text-black mb-1 uppercase">Název lokality</label>
-                        <input type="text" className="w-full p-2 border rounded text-black font-bold" value={loc.title} onChange={(e) => { updateLocation(loc.id, {title: e.target.value}); triggerSave(); }} />
+                        <input type="text" className="w-full p-2 border rounded text-black font-bold" value={loc.title} onChange={(e) => { updateLocation(loc.id, {title: e.target.value}); }} />
                       </div>
                       <div>
                         <label className="block text-xs font-black text-black mb-1 uppercase">Popis</label>
-                        <textarea className="w-full p-2 border rounded text-black text-sm" rows={3} value={loc.description} onChange={(e) => { updateLocation(loc.id, {description: e.target.value}); triggerSave(); }} />
+                        <textarea className="w-full p-2 border rounded text-black text-sm" rows={3} value={loc.description} onChange={(e) => { updateLocation(loc.id, {description: e.target.value}); }} />
                       </div>
                    </div>
                 </div>
@@ -552,7 +501,6 @@ export const defaultContent: SiteContent = ${JSON.stringify(content, null, 2)};`
                         onClick={() => {
                           if(window.confirm('Opravdu chcete smazat tento projekt?')) {
                              removeProject(project.id);
-                             triggerSave();
                           }
                         }}
                         className="p-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
@@ -666,47 +614,30 @@ export const defaultContent: SiteContent = ${JSON.stringify(content, null, 2)};`
       </div>
 
       {/* FIXED BOTTOM SAVE BAR */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-200 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] flex justify-between items-center z-40">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-200 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] flex flex-col sm:flex-row justify-between items-center z-40 gap-4">
         <div className="flex items-center gap-2">
-           {saveStatus === 'saved' && (
-             <div className="flex items-center gap-2 text-green-600 bg-green-50 px-3 py-1 rounded-full text-sm font-bold animate-pulse">
-               <Check size={16} /> Změny uloženy v prohlížeči
-             </div>
-           )}
+           <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-bold transition-all ${
+             saveStatus === 'saved' ? 'bg-green-100 text-green-700' : 
+             saveStatus === 'saving' ? 'bg-blue-100 text-blue-700' : 
+             saveStatus === 'error' ? 'bg-red-100 text-red-700' :
+             'bg-slate-100 text-slate-500'
+           }`}>
+             {saveStatus === 'saved' && <><Check size={16} /> Změny úspěšně zveřejněny</>}
+             {saveStatus === 'saving' && <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full border-2 border-blue-700 border-t-transparent animate-spin"></div> Odesílám do databáze...</div>}
+             {saveStatus === 'error' && <><AlertCircle size={16} /> Chyba při ukládání</>}
+             {saveStatus === 'idle' && "Máte neuložené změny"}
+           </div>
         </div>
-        <div className="flex gap-4">
-           {/* Primary Permanent Save Button */}
-           <button 
-             onClick={handleDirectFileSave}
-             disabled={saveStatus === 'saving_file'}
-             className={`px-6 py-3 font-bold rounded-xl shadow-lg transition-all flex items-center gap-2 border ${saveStatus === 'saving_file' ? 'bg-slate-100 text-slate-400' : 'bg-slate-900 text-white hover:bg-slate-800 border-slate-900'}`}
-             title="Přímo přepsat soubor defaultContent.ts na disku (vyžaduje podporovaný prohlížeč)"
-           >
-             <FileCode size={20} />
-             {saveStatus === 'saving_file' ? 'Ukládám...' : 'Přepsat soubor v kódu'}
-           </button>
-
-           {/* Fallback Download Button */}
-           <button 
-             onClick={handleExportForWeb}
-             className="px-4 py-3 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all flex items-center gap-2"
-             title="Stáhnout jako soubor (pokud přímý zápis nefunguje)"
-           >
-             <Download size={20} />
-             <span className="hidden sm:inline">Stáhnout</span>
-           </button>
-
-           <div className="h-10 w-px bg-slate-200 mx-2"></div>
-
-           {/* Temporary Browser Save */}
-           <button 
-             onClick={triggerSave}
-             className="px-6 py-3 bg-primary text-white font-bold rounded-xl shadow-lg hover:bg-primary-dark transition-all flex items-center gap-2"
-           >
-             <Save size={20} />
-             <span className="hidden sm:inline">Uložit dočasně</span>
-           </button>
-        </div>
+        
+        {/* Main Action Button */}
+        <button 
+          onClick={handlePublish}
+          disabled={saveStatus === 'saving'}
+          className={`w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-slate-900 to-slate-800 text-white font-bold rounded-xl shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed`}
+        >
+          <CloudUpload size={22} />
+          {saveStatus === 'saving' ? 'Zveřejňuji...' : 'Zveřejnit změny na web'}
+        </button>
       </div>
     </div>
   );

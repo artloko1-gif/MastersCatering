@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { ContentContextType, SiteContent, PortfolioItem, LocationItem, TeamContent, Inquiry } from '../types';
 import { saveContentToDB, getContentFromDB } from '../utils/db';
@@ -10,7 +9,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [content, setContent] = useState<SiteContent>(defaultContent);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Load content from IndexedDB on mount
+  // Load content from Firestore on mount
   useEffect(() => {
     const load = async () => {
       try {
@@ -27,15 +26,6 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
     load();
   }, []);
-
-  // Save content to IndexedDB whenever it changes (debounced could be better, but direct is fine for now with IDB)
-  useEffect(() => {
-    if (isInitialized) {
-      saveContentToDB(content).catch(err => {
-        console.error("Failed to save to DB:", err);
-      });
-    }
-  }, [content, isInitialized]);
 
   const updateContent = (newContent: Partial<SiteContent>) => {
     setContent(prev => ({ ...prev, ...newContent }));
@@ -81,6 +71,8 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
       ...prev,
       inquiries: [inquiry, ...(prev.inquiries || [])]
     }));
+    // Note: We might want to auto-save inquiries to DB even if other content isn't saved, 
+    // but for simplicity we keep state separate. In a real app, inquiries would be a separate collection.
   };
 
   const removeInquiry = (id: string) => {
@@ -90,8 +82,19 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }));
   };
 
+  const saveToCloud = async () => {
+    if (isInitialized) {
+      await saveContentToDB(content);
+    }
+  };
+
   if (!isInitialized) {
-     return <div className="h-screen w-full flex items-center justify-center text-slate-500">Načítám obsah...</div>;
+     return (
+       <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-50 gap-4">
+         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+         <p className="text-slate-500 font-medium animate-pulse">Načítám obsah z databáze...</p>
+       </div>
+     );
   }
 
   return (
@@ -104,7 +107,8 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
       updateProject,
       removeProject,
       addInquiry,
-      removeInquiry
+      removeInquiry,
+      saveToCloud
     }}>
       {children}
     </ContentContext.Provider>

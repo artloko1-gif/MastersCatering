@@ -84,4 +84,6 @@ export interface ContentContextType {
   // Inquiry management
   addInquiry: (inquiry: Inquiry) => void;
   removeInquiry: (id: string) => void;
+  // Cloud Ops
+  saveToCloud: () => Promise<void>;
 }
